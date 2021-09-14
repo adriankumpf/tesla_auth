@@ -74,29 +74,22 @@ fn main() -> wry::Result<()> {
         .build(&event_loop)
         .unwrap();
 
-    let handler = move |_window: &Window, mut req: RpcRequest| {
-        let mut response = None;
+    let handler = move |_window: &Window, mut req: RpcRequest| match req.method.as_str() {
+        "url" => {
+            let params = req.params.take().unwrap();
+            let mut args: Vec<String> = serde_json::from_value(params).unwrap();
+            let arg = args.swap_remove(0);
 
-        if &req.method == "url" {
-            if let Some(params) = req.params.take() {
-                if let Ok(mut args) = serde_json::from_value::<Vec<String>>(params) {
-                    let result = if !args.is_empty() {
-                        let url = args.swap_remove(0);
+            let url = Url::parse(&arg).expect("Invalid URL");
+            sender.send(url).unwrap();
 
-                        let sender = sender.clone();
-                        sender.send(url).unwrap();
-
-                        Some(Value::String("ok".into()))
-                    } else {
-                        None
-                    };
-
-                    response = Some(RpcResponse::new_result(req.id.take(), result));
-                }
-            }
+            Some(RpcResponse::new_result(
+                req.id.take(),
+                Some(Value::String("ok".into())),
+            ))
         }
 
-        response
+        _ => None,
     };
 
     let _webview = WebViewBuilder::new(window)
@@ -108,60 +101,59 @@ fn main() -> wry::Result<()> {
 
     thread::spawn(move || {
         while let Ok(url) = receiver.recv() {
-            let url = Url::parse(&url).unwrap();
-
             if url.path() != "/void/callback" {
                 continue;
             }
 
-            if let Some((_, state)) = url.query_pairs().find(|(key, _value)| key == "state") {
-                assert_eq!(&state.to_string(), csrf_token.secret());
-            };
+            let query: HashMap<_, _> = url.query_pairs().collect();
 
-            if let Some((_, code)) = url.query_pairs().find(|(key, _value)| key == "code") {
-                let code = AuthorizationCode::new(code.into_owned());
+            let state = query.get("state").expect("No state parameter found");
+            let code = query.get("code").expect("No code parameter found");
 
-                let token_result = client
-                    .exchange_code(code)
-                    .set_pkce_verifier(pkce_verifier)
-                    .request(http_client)
-                    .unwrap();
+            assert_eq!(&state.to_string(), csrf_token.secret());
 
-                let req_client = reqwest::blocking::Client::new();
+            let code = AuthorizationCode::new(code.to_string());
 
-                let mut body = HashMap::new();
-                body.insert("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer");
-                body.insert(
-                    "client_id",
-                    "81527cff06843c8634fdc09e8ac0abefb46ac849f38fe1e431c2ef2106796384",
-                );
-                body.insert(
-                    "client_secret",
-                    "c7257eb71a564034f9419ee651c7d0e5f7aa6bfbd18bafb5c5c033b093bb2fa3",
-                );
+            let token_result = client
+                .exchange_code(code)
+                .set_pkce_verifier(pkce_verifier)
+                .request(http_client)
+                .unwrap();
 
-                let tokens: SsoTokenResponse = req_client
-                    .post("https://owner-api.teslamotors.com/oauth/token")
-                    .header(
-                        AUTHORIZATION,
-                        format!("Bearer {}", token_result.access_token().secret()),
-                    )
-                    .json(&body)
-                    .send()
-                    .unwrap()
-                    .json()
-                    .unwrap();
+            let req_client = reqwest::blocking::Client::new();
 
-                println!(
-                    "Access Token:  {}\nRefresh Token:  {}",
-                    tokens.access_token,
-                    token_result.refresh_token().unwrap().secret()
-                );
+            let mut body = HashMap::new();
+            body.insert("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer");
+            body.insert(
+                "client_id",
+                "81527cff06843c8634fdc09e8ac0abefb46ac849f38fe1e431c2ef2106796384",
+            );
+            body.insert(
+                "client_secret",
+                "c7257eb71a564034f9419ee651c7d0e5f7aa6bfbd18bafb5c5c033b093bb2fa3",
+            );
 
-                event_proxy.send_event(()).unwrap();
+            let tokens: SsoTokenResponse = req_client
+                .post("https://owner-api.teslamotors.com/oauth/token")
+                .header(
+                    AUTHORIZATION,
+                    format!("Bearer {}", token_result.access_token().secret()),
+                )
+                .json(&body)
+                .send()
+                .unwrap()
+                .json()
+                .unwrap();
 
-                break;
-            };
+            println!(
+                "Access Token:  {}\nRefresh Token:  {}",
+                tokens.access_token,
+                token_result.refresh_token().unwrap().secret()
+            );
+
+            event_proxy.send_event(()).unwrap();
+
+            break;
         }
     });
 
