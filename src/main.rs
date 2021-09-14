@@ -37,9 +37,9 @@ fn main() -> wry::Result<()> {
 
     let (sender, receiver) = channel();
 
-    let handler = move |_window: &Window, mut req: RpcRequest| {
+    let handler = move |_window: &Window, req: RpcRequest| {
         if req.method == "url" {
-            let url = parse_url(&mut req);
+            let url = parse_url(req.params.unwrap());
             sender.send(url).unwrap();
         }
 
@@ -90,10 +90,8 @@ fn main() -> wry::Result<()> {
     });
 }
 
-fn parse_url(req: &mut RpcRequest) -> Url {
-    let params = req.params.take().unwrap();
-    let mut args: Vec<String> = serde_json::from_value(params).unwrap();
-    let arg = args.swap_remove(0);
-
-    Url::parse(&arg).expect("Invalid URL")
+fn parse_url(params: Value) -> Url {
+    let args = serde_json::from_value::<Vec<String>>(params).unwrap();
+    let url = args.first().unwrap();
+    Url::parse(&url).expect("Invalid URL")
 }
