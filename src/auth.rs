@@ -4,14 +4,15 @@ use oauth2::basic::BasicClient;
 use oauth2::reqwest::http_client;
 use oauth2::url::Url;
 use oauth2::{
-    AuthType, AuthUrl, AuthorizationCode, ClientId, CsrfToken, PkceCodeChallenge, PkceCodeVerifier,
-    RedirectUrl, Scope, TokenResponse, TokenUrl,
+    AccessToken, AuthType, AuthUrl, AuthorizationCode, ClientId, CsrfToken, PkceCodeChallenge,
+    PkceCodeVerifier, RedirectUrl, Scope, TokenResponse, TokenUrl,
 };
 
 use reqwest::header::AUTHORIZATION;
 
 use serde::Deserialize;
 
+const CLIENT_ID: &str = "ownerapi";
 const AUTH_URL: &str = "https://auth.tesla.com/oauth2/v3/authorize";
 const TOKEN_URL: &str = "https://auth.tesla.com/oauth2/v3/token";
 const REDIRECT_URL: &str = "https://auth.tesla.com/void/callback";
@@ -44,7 +45,7 @@ pub struct Client {
 impl Client {
     pub fn new() -> Self {
         let client = BasicClient::new(
-            ClientId::new("ownerapi".to_string()),
+            ClientId::new(CLIENT_ID.to_string()),
             None,
             AuthUrl::new(AUTH_URL.to_string()).unwrap(),
             Some(TokenUrl::new(TOKEN_URL.to_string()).unwrap()),
@@ -62,8 +63,6 @@ impl Client {
     pub fn authorization_url(&mut self) -> Url {
         let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
 
-        self.pkce_verifier = Some(pkce_verifier);
-
         let (auth_url, csrf_token) = self
             .oauth_client
             .authorize_url(CsrfToken::new_random)
@@ -73,6 +72,7 @@ impl Client {
             .set_pkce_challenge(pkce_challenge)
             .url();
 
+        self.pkce_verifier = Some(pkce_verifier);
         self.csrf_token = Some(csrf_token);
 
         auth_url
@@ -80,40 +80,41 @@ impl Client {
 
     pub fn verify_csrf_state(&self, state: String) {
         let csrf_token = self.csrf_token.as_ref().unwrap();
-        assert_eq!(&&state, &csrf_token.secret());
+        assert_eq!(&state, csrf_token.secret());
     }
 
     pub fn retrieve_tokens(self, code: AuthorizationCode) -> Tokens {
-        let token_result = self
+        let tokens = self
             .oauth_client
             .exchange_code(code)
             .set_pkce_verifier(self.pkce_verifier.unwrap())
             .request(http_client)
             .unwrap();
 
-        let short_lived_access_token = token_result.access_token().secret();
-        let refresh_token = token_result.refresh_token().unwrap().secret().to_string();
-
-        let mut body = HashMap::new();
-        body.insert("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer");
-        body.insert("client_id", SSO_CLIENT_ID);
-        body.insert("client_secret", SSO_CLIENT_SECRET);
-
-        let tokens: SsoTokenResponse = reqwest::blocking::Client::new()
-            .post(SSO_TOKEN_URL)
-            .header(
-                AUTHORIZATION,
-                format!("Bearer {}", short_lived_access_token),
-            )
-            .json(&body)
-            .send()
-            .unwrap()
-            .json()
-            .unwrap();
+        let access_token = exchange_sso_access_token(tokens.access_token());
+        let refresh_token = tokens.refresh_token().unwrap().secret().to_string();
 
         Tokens {
-            access: tokens.access_token,
+            access: access_token,
             refresh: refresh_token,
         }
     }
+}
+
+fn exchange_sso_access_token(access_token: &AccessToken) -> String {
+    let mut body = HashMap::new();
+    body.insert("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer");
+    body.insert("client_id", SSO_CLIENT_ID);
+    body.insert("client_secret", SSO_CLIENT_SECRET);
+
+    let tokens: SsoTokenResponse = reqwest::blocking::Client::new()
+        .post(SSO_TOKEN_URL)
+        .header(AUTHORIZATION, format!("Bearer {}", access_token.secret()))
+        .json(&body)
+        .send()
+        .unwrap()
+        .json()
+        .unwrap();
+
+    tokens.access_token
 }
