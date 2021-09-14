@@ -7,12 +7,10 @@ use std::thread;
 use oauth2::url::Url;
 use oauth2::AuthorizationCode;
 
-use serde_json::Value;
-
 use wry::application::event::{Event, WindowEvent};
 use wry::application::event_loop::{ControlFlow, EventLoop};
 use wry::application::window::{Window, WindowBuilder};
-use wry::webview::{RpcRequest, RpcResponse, WebViewBuilder};
+use wry::webview::{RpcRequest, WebViewBuilder};
 
 const INITIALIZATION_SCRIPT: &str = r#"
     (function () {
@@ -38,18 +36,13 @@ fn main() -> wry::Result<()> {
 
     let (sender, receiver) = channel();
 
-    let handler = move |_window: &Window, mut req: RpcRequest| match req.method.as_str() {
-        "url" => {
+    let handler = move |_window: &Window, mut req: RpcRequest| {
+        if req.method == "url" {
             let url = parse_url(&mut req);
             sender.send(url).unwrap();
-
-            Some(RpcResponse::new_result(
-                req.id.take(),
-                Some(Value::String("ok".into())),
-            ))
         }
 
-        _ => None,
+        None
     };
 
     let _webview = WebViewBuilder::new(window)
@@ -61,7 +54,7 @@ fn main() -> wry::Result<()> {
 
     thread::spawn(move || {
         while let Ok(url) = receiver.recv() {
-            if url.path() != "/void/callback" {
+            if !auth::is_redirect_url(&url) {
                 continue;
             }
 
@@ -86,17 +79,13 @@ fn main() -> wry::Result<()> {
         }
     });
 
-    event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
-
-        match event {
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } => *control_flow = ControlFlow::Exit,
-            Event::UserEvent(_event) => *control_flow = ControlFlow::Exit,
-            _ => (),
-        }
+    event_loop.run(move |event, _, control_flow| match event {
+        Event::WindowEvent {
+            event: WindowEvent::CloseRequested,
+            ..
+        } => *control_flow = ControlFlow::Exit,
+        Event::UserEvent(_event) => *control_flow = ControlFlow::Exit,
+        _ => *control_flow = ControlFlow::Wait,
     });
 }
 

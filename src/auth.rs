@@ -20,6 +20,10 @@ const SSO_CLIENT_ID: &str = "81527cff06843c8634fdc09e8ac0abefb46ac849f38fe1e431c
 const SSO_CLIENT_SECRET: &str = "c7257eb71a564034f9419ee651c7d0e5f7aa6bfbd18bafb5c5c033b093bb2fa3";
 const SSO_TOKEN_URL: &str = "https://owner-api.teslamotors.com/oauth/token";
 
+pub fn is_redirect_url(url: &Url) -> bool {
+    url.to_string().starts_with(REDIRECT_URL)
+}
+
 #[derive(Deserialize, Debug)]
 struct SsoTokenResponse {
     access_token: String,
