@@ -2,6 +2,24 @@
 name = "tesla_auth"
 version = "0.1.0"
 edition = "2018"
+description = "TBA"
+
+[package.metadata.bundle]
+name = "TeslaAuth"
+identifier = "io.github.adriankumpf.tesla_auth"
+# icon = ["32x32.png", "128x128.png", "128x128@2x.png"]
+# icon = ["examples/hello/icon*.png"]
+resources = []
+copyright = "Copyright (c) Adrian Kumpf 2021. All rights reserved."
+category = "Utility"
+long_description = """
+Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
+eiusmod tempor incididunt ut labore et dolore magna aliqua.  Ut
+enim ad minim veniam, quis nostrud exercitation ullamco laboris
+nisi ut aliquip ex ea commodo consequat.
+"""
+deb_depends = []
+osx_frameworks = []
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
