@@ -7,7 +7,12 @@ edition = "2018"
 
 [dependencies]
 oauth2 = "4.1.0"
-reqwest = { version = "0.11.4" , features = ["json"]}
+reqwest = { version = "0.11.4" , default-features = false, features = ["json", "rustls-tls"]}
 serde = "1.0.130"
 serde_json = "1.0.67"
-wry = "0.12"
+wry = { version = "0.12", default-features = false, features = [] }
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = 'abort'
