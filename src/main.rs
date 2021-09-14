@@ -11,11 +11,12 @@ use wry::application::event::{Event, WindowEvent};
 use wry::application::event_loop::{ControlFlow, EventLoop};
 use wry::application::window::{Window, WindowBuilder};
 use wry::webview::{RpcRequest, WebViewBuilder};
+use wry::Value;
 
 const INITIALIZATION_SCRIPT: &str = r#"
     (function () {
-        window.addEventListener('DOMContentLoaded', async (event) => {
-            await rpc.call('url', window.location.toString());
+        window.addEventListener('DOMContentLoaded', function(event) {
+            rpc.call('url', window.location.toString());
         });
     })();
 "#;
