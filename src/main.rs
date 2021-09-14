@@ -4,6 +4,9 @@ use std::collections::HashMap;
 use std::sync::mpsc::channel;
 use std::thread;
 
+use log::{info, LevelFilter};
+use simple_logger::SimpleLogger;
+
 use oauth2::url::Url;
 use oauth2::AuthorizationCode;
 
@@ -21,13 +24,25 @@ const INITIALIZATION_SCRIPT: &str = r#"
     })();
 "#;
 
+#[derive(Debug, Clone)]
+enum CustomEvent {
+    Tokens(auth::Tokens),
+}
+
 fn main() -> wry::Result<()> {
+    SimpleLogger::new()
+        .with_level(LevelFilter::Off)
+        .with_module_level("reqwest", LevelFilter::Debug)
+        .with_module_level("tesla_auth", LevelFilter::Debug)
+        .init()
+        .unwrap();
+
     let mut client = auth::Client::new();
     let auth_url = client.authorization_url();
 
-    println!("Opening {} ...", auth_url);
+    info!("Opening {} ...", auth_url);
 
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoop::<CustomEvent>::with_user_event();
     let event_proxy = event_loop.create_proxy();
 
     let window = WindowBuilder::new()
@@ -35,27 +50,22 @@ fn main() -> wry::Result<()> {
         .build(&event_loop)
         .unwrap();
 
-    let (sender, receiver) = channel();
+    let (tx, rx) = channel();
 
     let handler = move |_window: &Window, req: RpcRequest| {
         if req.method == "url" {
             let url = parse_url(req.params.unwrap());
-            sender.send(url).unwrap();
+            tx.send(url).unwrap();
         }
 
         None
     };
 
-    let _webview = WebViewBuilder::new(window)
-        .unwrap()
-        .with_initialization_script(INITIALIZATION_SCRIPT)
-        .with_url(auth_url.as_str())?
-        .with_rpc_handler(handler)
-        .build()?;
-
     thread::spawn(move || {
-        while let Ok(url) = receiver.recv() {
-            if !auth::is_redirect_url(&url) {
+        let mut tokens_retrieved = false;
+
+        while let Ok(url) = rx.recv() {
+            if !auth::is_redirect_url(&url) || tokens_retrieved {
                 continue;
             }
 
@@ -69,24 +79,57 @@ fn main() -> wry::Result<()> {
             let code = AuthorizationCode::new(code.to_string());
             let tokens = client.retrieve_tokens(code);
 
-            println!(
-                "Access Token:  {}\nRefresh Token:  {}",
-                tokens.access, tokens.refresh
-            );
+            tokens_retrieved = true;
 
-            event_proxy.send_event(()).unwrap();
-
-            break;
+            event_proxy.send_event(CustomEvent::Tokens(tokens)).unwrap();
         }
     });
 
-    event_loop.run(move |event, _, control_flow| match event {
+    let webview = WebViewBuilder::new(window)
+        .unwrap()
+        .with_initialization_script(INITIALIZATION_SCRIPT)
+        .with_url(auth_url.as_str())?
+        .with_rpc_handler(handler)
+        .build()?;
+
+    event_loop.run(move |event, _, control_flow| {
+                    *control_flow = ControlFlow::Wait;
+
+        match event {
         Event::WindowEvent {
             event: WindowEvent::CloseRequested,
             ..
         } => *control_flow = ControlFlow::Exit,
-        Event::UserEvent(_event) => *control_flow = ControlFlow::Exit,
-        _ => *control_flow = ControlFlow::Wait,
+        Event::UserEvent(CustomEvent::Tokens(tokens)) => {
+            info!("Received tokens: {:?}", tokens);
+
+             webview.evaluate_script(&r#"
+                (function () {
+                    var body = `
+                        <!DOCTYPE html>
+                        <html lang="en">
+                          <body>
+                            <form action='#' method='POST'>
+                              <label for='access_token'>Access Token:</label><br />
+                              <input type='text' id='access_token' name='access_token' value='{access_token}' /><br />
+                              <label for='refresh_token'>Refresh Token:</label><br />
+                              <input type='text' id='refresh_token' name='refresh_token' value='{refresh_token}' /><br /><br />
+                            </form>
+                          </body>
+                        </html>
+                    `;
+
+                    document.open();
+                    document.write(body);
+                    document.close();
+                })();
+            "# 
+                .replace("{access_token}", &tokens.access)
+                .replace("{refresh_token}", &tokens.refresh)
+            ).unwrap();
+        }
+        _ => (),
+        }
     });
 }
 

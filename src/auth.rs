@@ -30,7 +30,7 @@ struct SsoTokenResponse {
     access_token: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Tokens {
     pub access: String,
     pub refresh: String,
@@ -83,11 +83,13 @@ impl Client {
         assert_eq!(&state, csrf_token.secret());
     }
 
-    pub fn retrieve_tokens(self, code: AuthorizationCode) -> Tokens {
+    pub fn retrieve_tokens(&mut self, code: AuthorizationCode) -> Tokens {
+        let pkce_verifier = self.pkce_verifier.take().unwrap();
+
         let tokens = self
             .oauth_client
             .exchange_code(code)
-            .set_pkce_verifier(self.pkce_verifier.unwrap())
+            .set_pkce_verifier(pkce_verifier)
             .request(http_client)
             .unwrap();
 
