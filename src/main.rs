@@ -1,7 +1,7 @@
 mod auth;
 
 use std::collections::HashMap;
-use std::sync::mpsc::channel;
+use std::sync::mpsc::{channel, Receiver};
 use std::thread;
 
 use log::{debug, info, LevelFilter};
@@ -11,11 +11,11 @@ use oauth2::url::Url;
 
 use wry::application::accelerator::{Accelerator, SysMods};
 use wry::application::event::{Event, WindowEvent};
-use wry::application::event_loop::{ControlFlow, EventLoop};
+use wry::application::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 use wry::application::keyboard::KeyCode;
-use wry::application::menu::{MenuBar as Menu, MenuItem, MenuItemAttributes, MenuType};
+use wry::application::menu::{CustomMenuItem, MenuBar, MenuItem, MenuItemAttributes, MenuType};
 use wry::application::window::{Window, WindowBuilder};
-use wry::http::ResponseBuilder;
+use wry::http::{Request, Response, ResponseBuilder};
 use wry::webview::{RpcRequest, WebViewBuilder};
 use wry::Value;
 
@@ -44,35 +44,8 @@ fn main() -> wry::Result<()> {
         .init()
         .unwrap();
 
-    let mut client = auth::Client::new();
-    let auth_url = client.authorization_url();
-
-    debug!("Opening {} ...", auth_url);
-
     let event_loop = EventLoop::<CustomEvent>::with_user_event();
     let event_proxy = event_loop.create_proxy();
-
-    let mut menu_bar_menu = Menu::new();
-    let mut menu = Menu::new();
-
-    menu.add_native_item(MenuItem::About("Todos".to_string()));
-    menu.add_native_item(MenuItem::Services);
-    menu.add_native_item(MenuItem::Separator);
-    menu.add_native_item(MenuItem::Hide);
-    let quit_item = menu.add_item(
-        MenuItemAttributes::new("Quit")
-            .with_accelerators(&Accelerator::new(SysMods::Cmd, KeyCode::KeyQ)),
-    );
-    menu.add_native_item(MenuItem::Copy);
-    menu.add_native_item(MenuItem::Paste);
-
-    menu_bar_menu.add_submenu("First menu", true, menu);
-
-    let window = WindowBuilder::new()
-        .with_title("Tesla Auth")
-        .with_menu(menu_bar_menu)
-        .build(&event_loop)
-        .unwrap();
 
     let (tx, rx) = channel();
 
@@ -85,58 +58,28 @@ fn main() -> wry::Result<()> {
         None
     };
 
+    let mut client = auth::Client::new();
+    let auth_url = client.authorization_url();
+
     thread::spawn(move || {
-        let mut tokens_retrieved = false;
-
-        while let Ok(url) = rx.recv() {
-            if !auth::is_redirect_url(&url) || tokens_retrieved {
-                debug!("URL changed: {}", &url);
-                continue;
-            }
-
-            let query: HashMap<_, _> = url.query_pairs().collect();
-
-            let state = query.get("state").expect("No state parameter found");
-            let code = query.get("code").expect("No code parameter found");
-
-            client.verify_csrf_state(state.to_string());
-
-            let tokens = client.retrieve_tokens(code);
-
-            tokens_retrieved = true;
-
-            event_proxy.send_event(CustomEvent::Tokens(tokens)).unwrap();
-        }
+        handle_url_changes(rx, client, event_proxy);
     });
 
-    let webview = WebViewBuilder::new(window)
-        .unwrap()
+    let (menu, quit_item) = build_menu();
+
+    let window = WindowBuilder::new()
+        .with_title("Tesla Auth")
+        .with_menu(menu)
+        .build(&event_loop)?;
+
+    let webview = WebViewBuilder::new(window)?
         .with_initialization_script(INITIALIZATION_SCRIPT)
-        .with_custom_protocol("wry".into(), move |request| {
-            let url: Url = request.uri().parse()?;
-
-            match url.domain() {
-                Some("index.html") => {
-                    let query = url.query_pairs().collect::<HashMap<_, _>>();
-
-                    let (access, refresh) =
-                        (query.get("access").unwrap(), query.get("refresh").unwrap());
-
-                    let content = include_str!("../views/index.html")
-                        .replace("{access_token}", access)
-                        .replace("{refresh_token}", refresh);
-
-                    ResponseBuilder::new()
-                        .mimetype("text/html")
-                        .body(content.as_bytes().to_vec())
-                }
-
-                domain => unimplemented!("Cannot open {:?}", domain),
-            }
-        })
+        .with_custom_protocol("wry".into(), protocol_handler)
         .with_url(auth_url.as_str())?
         .with_rpc_handler(handler)
         .build()?;
+
+    debug!("Opening {} ...", auth_url);
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
@@ -169,6 +112,76 @@ fn main() -> wry::Result<()> {
             _ => (),
         }
     });
+}
+
+fn build_menu() -> (MenuBar, CustomMenuItem) {
+    let mut menu_bar_menu = MenuBar::new();
+    let mut menu = MenuBar::new();
+
+    menu.add_native_item(MenuItem::About("Todos".to_string()));
+    menu.add_native_item(MenuItem::Services);
+    menu.add_native_item(MenuItem::Separator);
+    menu.add_native_item(MenuItem::Hide);
+    let quit_item = menu.add_item(
+        MenuItemAttributes::new("Quit")
+            .with_accelerators(&Accelerator::new(SysMods::Cmd, KeyCode::KeyQ)),
+    );
+    menu.add_native_item(MenuItem::Copy);
+    menu.add_native_item(MenuItem::Paste);
+
+    menu_bar_menu.add_submenu("First menu", true, menu);
+
+    (menu_bar_menu, quit_item)
+}
+
+fn handle_url_changes(
+    rx: Receiver<Url>,
+    mut client: auth::Client,
+    event_proxy: EventLoopProxy<CustomEvent>,
+) {
+    let mut tokens_retrieved = false;
+
+    while let Ok(url) = rx.recv() {
+        if !auth::is_redirect_url(&url) || tokens_retrieved {
+            debug!("URL changed: {}", &url);
+            continue;
+        }
+
+        let query: HashMap<_, _> = url.query_pairs().collect();
+
+        let state = query.get("state").expect("No state parameter found");
+        let code = query.get("code").expect("No code parameter found");
+
+        client.verify_csrf_state(state.to_string());
+
+        let tokens = client.retrieve_tokens(code);
+
+        tokens_retrieved = true;
+
+        event_proxy.send_event(CustomEvent::Tokens(tokens)).unwrap();
+    }
+}
+
+fn protocol_handler(request: &Request) -> wry::Result<Response> {
+    let url: Url = request.uri().parse()?;
+
+    match url.domain() {
+        Some("index.html") => {
+            let query = url.query_pairs().collect::<HashMap<_, _>>();
+
+            let (access, refresh) = (query.get("access").unwrap(), query.get("refresh").unwrap());
+
+            let content = include_str!("../views/index.html")
+                .replace("{access_token}", access)
+                .replace("{refresh_token}", refresh);
+
+            ResponseBuilder::new()
+                .mimetype("text/html")
+                .body(content.as_bytes().to_vec())
+        }
+
+        domain => unimplemented!("Cannot open {:?}", domain),
+    }
 }
 
 fn parse_url(params: Value) -> Url {
