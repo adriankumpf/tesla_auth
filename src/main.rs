@@ -163,7 +163,7 @@ fn handle_url_changes(
 }
 
 fn protocol_handler(request: &Request) -> wry::Result<Response> {
-    let url: Url = request.uri().parse()?;
+    let url = request.uri().parse::<Url>()?;
 
     match url.domain() {
         Some("index.html") => {
