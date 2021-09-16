@@ -83,7 +83,8 @@ impl Client {
         assert_eq!(&state, csrf_token.secret());
     }
 
-    pub fn retrieve_tokens(&mut self, code: AuthorizationCode) -> Tokens {
+    pub fn retrieve_tokens(&mut self, code: &str) -> Tokens {
+        let code = AuthorizationCode::new(code.to_string());
         let pkce_verifier = self.pkce_verifier.take().unwrap();
 
         let tokens = self

@@ -4,15 +4,15 @@ use std::collections::HashMap;
 use std::sync::mpsc::channel;
 use std::thread;
 
-use log::{info, LevelFilter};
+use log::{debug, info, LevelFilter};
 use simple_logger::SimpleLogger;
 
 use oauth2::url::Url;
-use oauth2::AuthorizationCode;
 
 use wry::application::event::{Event, WindowEvent};
 use wry::application::event_loop::{ControlFlow, EventLoop};
 use wry::application::window::{Window, WindowBuilder};
+use wry::http::ResponseBuilder;
 use wry::webview::{RpcRequest, WebViewBuilder};
 use wry::Value;
 
@@ -66,6 +66,7 @@ fn main() -> wry::Result<()> {
 
         while let Ok(url) = rx.recv() {
             if !auth::is_redirect_url(&url) || tokens_retrieved {
+                debug!("URL changed: {}", &url);
                 continue;
             }
 
@@ -76,7 +77,6 @@ fn main() -> wry::Result<()> {
 
             client.verify_csrf_state(state.to_string());
 
-            let code = AuthorizationCode::new(code.to_string());
             let tokens = client.retrieve_tokens(code);
 
             tokens_retrieved = true;
@@ -88,47 +88,51 @@ fn main() -> wry::Result<()> {
     let webview = WebViewBuilder::new(window)
         .unwrap()
         .with_initialization_script(INITIALIZATION_SCRIPT)
+        .with_custom_protocol("wry".into(), move |request| {
+            let url: Url = request.uri().parse()?;
+
+            match url.domain() {
+                Some("index.html") => {
+                    let query = url.query_pairs().collect::<HashMap<_, _>>();
+
+                    let (access, refresh) =
+                        (query.get("access").unwrap(), query.get("refresh").unwrap());
+
+                    let content = include_str!("../views/index.html")
+                        .replace("{access_token}", access)
+                        .replace("{refresh_token}", refresh);
+
+                    ResponseBuilder::new()
+                        .mimetype("text/html")
+                        .body(content.as_bytes().to_vec())
+                }
+
+                _ => unimplemented!(),
+            }
+        })
         .with_url(auth_url.as_str())?
         .with_rpc_handler(handler)
         .build()?;
 
     event_loop.run(move |event, _, control_flow| {
-                    *control_flow = ControlFlow::Wait;
+        *control_flow = ControlFlow::Wait;
 
         match event {
-        Event::WindowEvent {
-            event: WindowEvent::CloseRequested,
-            ..
-        } => *control_flow = ControlFlow::Exit,
-        Event::UserEvent(CustomEvent::Tokens(tokens)) => {
-            info!("Received tokens: {:?}", tokens);
+            Event::WindowEvent {
+                event: WindowEvent::CloseRequested,
+                ..
+            } => *control_flow = ControlFlow::Exit,
+            Event::UserEvent(CustomEvent::Tokens(tokens)) => {
+                info!("Received tokens: {:#?}", tokens);
 
-             webview.evaluate_script(&r#"
-                (function () {
-                    var body = `
-                        <!DOCTYPE html>
-                        <html lang="en">
-                          <body>
-                            <form action='#' method='POST'>
-                              <label for='access_token'>Access Token:</label><br />
-                              <input type='text' id='access_token' name='access_token' value='{access_token}' /><br />
-                              <label for='refresh_token'>Refresh Token:</label><br />
-                              <input type='text' id='refresh_token' name='refresh_token' value='{refresh_token}' /><br /><br />
-                            </form>
-                          </body>
-                        </html>
-                    `;
+                let url = format!(
+                    "location.replace('wry://index.html?access={}&refresh={}');",
+                    tokens.access, tokens.refresh
+                );
 
-                    document.open();
-                    document.write(body);
-                    document.close();
-                })();
-            "# 
-                .replace("{access_token}", &tokens.access)
-                .replace("{refresh_token}", &tokens.refresh)
-            ).unwrap();
-        }
-        _ => (),
+                webview.evaluate_script(&url).unwrap();
+            }
+            _ => (),
         }
     });
 }
@@ -136,5 +140,5 @@ fn main() -> wry::Result<()> {
 fn parse_url(params: Value) -> Url {
     let args = serde_json::from_value::<Vec<String>>(params).unwrap();
     let url = args.first().unwrap();
-    Url::parse(&url).expect("Invalid URL")
+    Url::parse(url).expect("Invalid URL")
 }
