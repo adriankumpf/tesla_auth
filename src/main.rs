@@ -20,11 +20,15 @@ use wry::webview::{RpcRequest, WebViewBuilder};
 use wry::Value;
 
 const INITIALIZATION_SCRIPT: &str = r#"
-    (function () {
-        window.addEventListener('DOMContentLoaded', function(event) {
-            rpc.call('url', window.location.toString());
-        });
-    })();
+    window.addEventListener('DOMContentLoaded', function(event) {
+        var url = window.location.toString();
+
+        if (url.startsWith("https://auth.tesla.com/void/callback")) {
+            location.replace("wry://index.html?access=loading...&refresh=loading...");
+        }
+
+        rpc.call('url', url);
+    });
 "#;
 
 #[derive(Debug, Clone)]
@@ -43,7 +47,7 @@ fn main() -> wry::Result<()> {
     let mut client = auth::Client::new();
     let auth_url = client.authorization_url();
 
-    info!("Opening {} ...", auth_url);
+    debug!("Opening {} ...", auth_url);
 
     let event_loop = EventLoop::<CustomEvent>::with_user_event();
     let event_proxy = event_loop.create_proxy();
