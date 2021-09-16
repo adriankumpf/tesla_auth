@@ -9,8 +9,11 @@ use simple_logger::SimpleLogger;
 
 use oauth2::url::Url;
 
+use wry::application::accelerator::{Accelerator, SysMods};
 use wry::application::event::{Event, WindowEvent};
 use wry::application::event_loop::{ControlFlow, EventLoop};
+use wry::application::keyboard::KeyCode;
+use wry::application::menu::{MenuBar as Menu, MenuItem, MenuItemAttributes, MenuType};
 use wry::application::window::{Window, WindowBuilder};
 use wry::http::ResponseBuilder;
 use wry::webview::{RpcRequest, WebViewBuilder};
@@ -45,8 +48,25 @@ fn main() -> wry::Result<()> {
     let event_loop = EventLoop::<CustomEvent>::with_user_event();
     let event_proxy = event_loop.create_proxy();
 
+    let mut menu_bar_menu = Menu::new();
+    let mut menu = Menu::new();
+
+    menu.add_native_item(MenuItem::About("Todos".to_string()));
+    menu.add_native_item(MenuItem::Services);
+    menu.add_native_item(MenuItem::Separator);
+    menu.add_native_item(MenuItem::Hide);
+    let quit_item = menu.add_item(
+        MenuItemAttributes::new("Quit")
+            .with_accelerators(&Accelerator::new(SysMods::Cmd, KeyCode::KeyQ)),
+    );
+    menu.add_native_item(MenuItem::Copy);
+    menu.add_native_item(MenuItem::Paste);
+
+    menu_bar_menu.add_submenu("First menu", true, menu);
+
     let window = WindowBuilder::new()
         .with_title("Tesla Auth")
+        .with_menu(menu_bar_menu)
         .build(&event_loop)
         .unwrap();
 
@@ -107,7 +127,7 @@ fn main() -> wry::Result<()> {
                         .body(content.as_bytes().to_vec())
                 }
 
-                _ => unimplemented!(),
+                domain => unimplemented!("Cannot open {:?}", domain),
             }
         })
         .with_url(auth_url.as_str())?
@@ -131,6 +151,16 @@ fn main() -> wry::Result<()> {
                 );
 
                 webview.evaluate_script(&url).unwrap();
+            }
+            Event::MenuEvent {
+                menu_id,
+                origin: MenuType::MenuBar,
+                ..
+            } => {
+                if menu_id == quit_item.clone().id() {
+                    *control_flow = ControlFlow::Exit;
+                }
+                println!("Clicked on {:?}", menu_id);
             }
             _ => (),
         }
