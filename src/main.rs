@@ -40,7 +40,7 @@ enum CustomEvent {
 }
 
 #[derive(FromArgs, Debug)]
-/// Tesla tokens generator
+/// Tesla API tokens generator
 struct Args {
     /// print debug output
     #[argh(switch, short = 'd')]
