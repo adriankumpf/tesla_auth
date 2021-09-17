@@ -22,8 +22,14 @@ use wry::Value;
 mod auth;
 
 const INITIALIZATION_SCRIPT: &str = r#"
-window.addEventListener('DOMContentLoaded', function(event) {
-    rpc.call('url', window.location.toString());
+window.addEventListener('DOMContentLoaded', (event) => {
+    const url = window.location.toString();
+
+    if (url.startsWith("https://auth.tesla.com/void/callback")) {
+       document.querySelector("h1.h1").innerText = "Generating Tokens …";
+    }
+
+    rpc.call('url', url);
 });
 "#;
 
@@ -69,7 +75,7 @@ fn main() -> anyhow::Result<()> {
         .with_menu(menu)
         .build(&event_loop)?;
 
-    let _webview = WebViewBuilder::new(window)?
+    let webview = WebViewBuilder::new(window)?
         .with_initialization_script(INITIALIZATION_SCRIPT)
         .with_url(auth_url.as_str())?
         .with_rpc_handler(rpc_url_handler(auth_client, event_proxy))
@@ -94,12 +100,44 @@ fn main() -> anyhow::Result<()> {
 
             Event::UserEvent(CustomEvent::Failure(e)) => {
                 error!("{}", e);
-                *control_flow = ControlFlow::Exit
+
+                let script = r#"
+                    const html = `
+                        <h4 style="text-align: center;">An error occured. Please try again ...</h4>
+                        <p style="text-align: center;color:red;margin-bottom:20px;">{msg}</p>
+                    `;
+                    document.querySelector("h1.h1").outerHTML = html;
+                "#
+                .replace("{msg}", &e.to_string());
+
+                webview.evaluate_script(&script).unwrap();
             }
 
             Event::UserEvent(CustomEvent::Tokens(tokens)) => {
                 println!("{}", tokens);
-                *control_flow = ControlFlow::Exit
+
+                let script = r#"
+                    const html = `
+                        <h4 style="text-align: center;">Access Token</h4>
+                        <textarea readonly onclick="this.setSelectionRange(0, this.value.length)" 
+                                  cols="80" rows="1" style="resize:none;padding:4px;font-size:0.9em;"
+                        >{access_token}</textarea>
+                        <h4 style="text-align: center;">Refresh Token</h4>
+                        <textarea readonly onclick="this.setSelectionRange(0, this.value.length)" 
+                                  cols="80" rows="3" style="resize:none;padding:4px;font-size:0.9em;"
+                        >{refresh_token}</textarea>
+                        <small style="margin-top:12px;margin-bottom:20px;text-align:center;color:seagreen;">
+                        Valid until {expires_at}
+                        </small>
+                    `;
+
+                    document.querySelector("h1.h1").outerHTML = html;
+                "#
+                .replace("{access_token}", tokens.access.secret())
+                .replace("{refresh_token}", tokens.refresh.secret())
+                .replace("{expires_at}", &tokens.expires_at.to_string());
+
+                webview.evaluate_script(&script).unwrap();
             }
 
             _ => (),

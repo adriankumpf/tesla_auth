@@ -1,6 +1,6 @@
 # tesla_auth
 
-## Platform-specific notes
+## Platform-specific dependencies
 
 ### Linux
 
@@ -26,7 +26,7 @@ sudo dnf install gtk3-devel webkit2gtk3-devel libappindicator-gtk3-devel
 
 ### macOS
 
-WebKit is native on macOS so everything should be fine.
+WebKit is native on macOS so no additional dependencies are required.
 
 ### Windows (not tested!)
 
