@@ -16,6 +16,8 @@ jobs:
           toolchain: stable
           profile: minimal
           override: true
+      - run: sudo apt-get install -y -qq webkit2gtk-4.0 libgtksourceview-3.0-dev libappindicator3-dev
+      - uses: Swatinem/rust-cache@v1
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -63,6 +65,8 @@ jobs:
           profile: minimal
           override: true
           components: clippy
+      - run: sudo apt-get install -y -qq webkit2gtk-4.0 libgtksourceview-3.0-dev libappindicator3-dev
+      - uses: Swatinem/rust-cache@v1
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
