@@ -1,8 +1,14 @@
 [package]
 name = "tesla_auth"
 version = "0.1.0"
-edition = "2018"
 description = "TBA"
+homepage = "https://github.com/adriankumpf/tesla_auth"
+repository = "https://github.com/adriankumpf/tesla_auth"
+keywords = ["tesla", "oauth", "cli", "terminal"]
+categories = ["command-line-utilities"]
+authors = ["Adrian Kumpf"]
+edition = "2018"
+license = "MIT OR Apache-2.0"
 
 [package.metadata.bundle]
 name = "TeslaAuth"
