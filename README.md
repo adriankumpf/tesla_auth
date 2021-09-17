@@ -9,9 +9,9 @@ Multi-factor authentication (MFA) and Captcha are supported.
 
 ## Download
 
-- [macOS](/adriankumpf/tesla_auth/releases/latest/download/tesla-auth-macos.tar.gz)
-- [Linux](/adriankumpf/tesla_auth/releases/latest/download/tesla-auth-linux.tar.gz)
-- [Windows (untested)](/adriankumpf/tesla_auth/releases/latest/download/tesla-auth-windows.tar.gz)
+- [macOS](https://github.com/adriankumpf/tesla_auth/releases/latest/download/tesla-auth-macos.tar.gz)
+- [Linux](https://github.com/adriankumpf/tesla_auth/releases/latest/download/tesla-auth-linux.tar.gz)
+- [Windows (untested)](https://github.com/adriankumpf/tesla_auth/releases/latest/download/tesla-auth-windows.tar.gz)
 
 ## Usage
 
