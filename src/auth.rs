@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
 use anyhow::anyhow;
+use reqwest::header::AUTHORIZATION;
+use serde::Deserialize;
 
 use oauth2::basic::BasicClient;
 use oauth2::reqwest::http_client;
@@ -9,10 +11,6 @@ use oauth2::{
     AccessToken, AuthType, AuthUrl, AuthorizationCode, ClientId, CsrfToken, PkceCodeChallenge,
     PkceCodeVerifier, RedirectUrl, Scope, TokenResponse, TokenUrl,
 };
-
-use reqwest::header::AUTHORIZATION;
-
-use serde::Deserialize;
 
 const CLIENT_ID: &str = "ownerapi";
 const AUTH_URL: &str = "https://auth.tesla.com/oauth2/v3/authorize";
@@ -89,13 +87,10 @@ impl Client {
             .set_pkce_verifier(self.pkce_verifier)
             .request(http_client)?;
 
-        let access_token = exchange_sso_access_token(tokens.access_token())?;
-        let refresh_token = tokens.refresh_token().unwrap().secret().to_string();
+        let access = exchange_sso_access_token(tokens.access_token())?;
+        let refresh = tokens.refresh_token().unwrap().secret().to_string();
 
-        Ok(Tokens {
-            access: access_token,
-            refresh: refresh_token,
-        })
+        Ok(Tokens { access, refresh })
     }
 }
 

@@ -5,20 +5,18 @@ use std::sync::mpsc::channel;
 use std::thread;
 
 use anyhow::anyhow;
-
 use log::{debug, error, info, LevelFilter};
-use simple_logger::SimpleLogger;
-
 use oauth2::url::Url;
+use simple_logger::SimpleLogger;
 
 use wry::application::accelerator::{Accelerator, SysMods};
 use wry::application::event::{Event, WindowEvent};
-use wry::application::event_loop::{ControlFlow, EventLoop};
+use wry::application::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 use wry::application::keyboard::KeyCode;
 use wry::application::menu::{MenuBar, MenuId, MenuItem, MenuItemAttributes, MenuType};
 use wry::application::window::{Window, WindowBuilder};
 use wry::http::{Request, Response, ResponseBuilder};
-use wry::webview::{RpcRequest, WebViewBuilder};
+use wry::webview::{RpcRequest, RpcResponse, WebViewBuilder};
 use wry::Value;
 
 const INITIALIZATION_SCRIPT: &str = r#"
@@ -47,9 +45,83 @@ fn main() -> anyhow::Result<()> {
     let event_loop = EventLoop::<CustomEvent>::with_user_event();
     let event_proxy = event_loop.create_proxy();
 
-    let client = auth::Client::new();
-    let auth_url = client.authorize_url();
+    let auth_client = auth::Client::new();
+    let auth_url = auth_client.authorize_url();
 
+    let (menu, quit_id) = build_menu();
+
+    let window = WindowBuilder::new()
+        .with_title("Tesla Auth")
+        .with_menu(menu)
+        .build(&event_loop)?;
+
+    let webview = WebViewBuilder::new(window)?
+        .with_initialization_script(INITIALIZATION_SCRIPT)
+        .with_custom_protocol("wry".into(), protocol_handler)
+        .with_url(auth_url.as_str())?
+        .with_rpc_handler(rpc_url_handler(auth_client, event_proxy))
+        .build()?;
+
+    debug!("Opening {} ...", auth_url);
+
+    event_loop.run(move |event, _, control_flow| {
+        *control_flow = ControlFlow::Wait;
+
+        match event {
+            Event::WindowEvent {
+                event: WindowEvent::CloseRequested,
+                ..
+            } => *control_flow = ControlFlow::Exit,
+
+            Event::UserEvent(CustomEvent::Tokens(tokens)) => {
+                info!("Received tokens: {:#?}", tokens);
+
+                let url = format!(
+                    "location.replace('wry://index.html?access={}&refresh={}');",
+                    tokens.access, tokens.refresh
+                );
+
+                webview.evaluate_script(&url).unwrap();
+            }
+
+            Event::MenuEvent {
+                menu_id,
+                origin: MenuType::MenuBar,
+                ..
+            } => {
+                match menu_id {
+                    id if id == quit_id => *control_flow = ControlFlow::Exit,
+                    _ => (),
+                };
+            }
+
+            _ => (),
+        }
+    });
+}
+
+fn build_menu() -> (MenuBar, MenuId) {
+    let mut menu_bar = MenuBar::new();
+    let mut menu = MenuBar::new();
+
+    menu.add_native_item(MenuItem::Copy);
+    menu.add_native_item(MenuItem::Paste);
+    menu.add_native_item(MenuItem::Separator);
+    menu.add_native_item(MenuItem::Hide);
+    let quit_item = menu.add_item(
+        MenuItemAttributes::new("Quit")
+            .with_accelerators(&Accelerator::new(SysMods::Cmd, KeyCode::KeyQ)),
+    );
+
+    menu_bar.add_submenu("", true, menu);
+
+    (menu_bar, quit_item.id())
+}
+
+fn rpc_url_handler(
+    client: auth::Client,
+    event_proxy: EventLoopProxy<CustomEvent>,
+) -> impl Fn(&Window, RpcRequest) -> Option<RpcResponse> {
     let (tx, rx) = channel();
 
     let handler = move |_window: &Window, req: RpcRequest| {
@@ -80,78 +152,7 @@ fn main() -> anyhow::Result<()> {
         }
     });
 
-    let (menu, quit_id) = build_menu();
-
-    let window = WindowBuilder::new()
-        .with_title("Tesla Auth")
-        .with_menu(menu)
-        .build(&event_loop)?;
-
-    let webview = WebViewBuilder::new(window)?
-        .with_initialization_script(INITIALIZATION_SCRIPT)
-        .with_custom_protocol("wry".into(), protocol_handler)
-        .with_url(auth_url.as_str())?
-        .with_rpc_handler(handler)
-        .build()?;
-
-    debug!("Opening {} ...", auth_url);
-
-    event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
-
-        match event {
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } => *control_flow = ControlFlow::Exit,
-
-            Event::UserEvent(CustomEvent::Tokens(tokens)) => {
-                info!("Received tokens: {:#?}", tokens);
-
-                let url = format!(
-                    "location.replace('wry://index.html?access={}&refresh={}');",
-                    tokens.access, tokens.refresh
-                );
-
-                webview.evaluate_script(&url).unwrap();
-            }
-
-            Event::MenuEvent {
-                menu_id,
-                origin: MenuType::MenuBar,
-                ..
-            } => {
-                debug!("Clicked on {:?}", menu_id);
-
-                match menu_id {
-                    id if id == quit_id => *control_flow = ControlFlow::Exit,
-                    _ => (),
-                };
-            }
-
-            _ => (),
-        }
-    });
-}
-
-fn build_menu() -> (MenuBar, MenuId) {
-    let mut menu_bar_menu = MenuBar::new();
-    let mut menu = MenuBar::new();
-
-    menu.add_native_item(MenuItem::About("Todos".to_string()));
-    menu.add_native_item(MenuItem::Services);
-    menu.add_native_item(MenuItem::Separator);
-    menu.add_native_item(MenuItem::Hide);
-    let quit_item = menu.add_item(
-        MenuItemAttributes::new("Quit")
-            .with_accelerators(&Accelerator::new(SysMods::Cmd, KeyCode::KeyQ)),
-    );
-    menu.add_native_item(MenuItem::Copy);
-    menu.add_native_item(MenuItem::Paste);
-
-    menu_bar_menu.add_submenu("First menu", true, menu);
-
-    (menu_bar_menu, quit_item.id())
+    handler
 }
 
 fn protocol_handler(request: &Request) -> wry::Result<Response> {
