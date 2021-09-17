@@ -5,6 +5,7 @@ use std::sync::mpsc::channel;
 use std::thread;
 
 use anyhow::anyhow;
+use argh::FromArgs;
 use log::{debug, error, LevelFilter};
 use oauth2::url::Url;
 use simple_logger::SimpleLogger;
@@ -22,9 +23,9 @@ use wry::Value;
 mod auth;
 
 const INITIALIZATION_SCRIPT: &str = r#"
-    window.addEventListener('DOMContentLoaded', function(event) {
-        rpc.call('url', window.location.toString());
-    });
+window.addEventListener('DOMContentLoaded', function() {
+    rpc.call('url', window.location.toString());
+});
 "#;
 
 #[derive(Debug, Clone)]
@@ -32,12 +33,24 @@ enum CustomEvent {
     Tokens(auth::Tokens),
 }
 
+#[derive(FromArgs, Debug)]
+/// Tesla tokens generator
+struct Args {
+    /// print debug output
+    #[argh(switch, short = 'd')]
+    debug: bool,
+}
+
 fn main() -> anyhow::Result<()> {
-    SimpleLogger::new()
-        .with_level(LevelFilter::Off)
-        .with_module_level("reqwest", LevelFilter::Debug)
-        .with_module_level("tesla_auth", LevelFilter::Debug)
-        .init()?;
+    let args: Args = argh::from_env();
+
+    if args.debug {
+        SimpleLogger::new()
+            .with_level(LevelFilter::Off)
+            .with_module_level("reqwest", LevelFilter::Debug)
+            .with_module_level("tesla_auth", LevelFilter::Debug)
+            .init()?;
+    }
 
     let event_loop = EventLoop::<CustomEvent>::with_user_event();
     let event_proxy = event_loop.create_proxy();

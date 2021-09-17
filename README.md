@@ -1,20 +1,5 @@
 # tesla_auth
 
-## Overview
-
-## TODO
-
-- [x] Error handling
-- [x] Debug logs
-- [x] Display simple HTML page with access and refresh token
-- [x] Add GitHub Action
-  - [x] Lint code
-  - [x] Build binaries for different operating systems and attach them to a release
-- [ ] Create macOS app, Windows .exe etc.
-  - [ ] Add icons
-  - [ ] Show app in doc
-  - [ ] Update CD action
-
 ## Platform-specific notes
 
 ### Linux

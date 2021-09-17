@@ -1,7 +1,7 @@
 [package]
 name = "tesla_auth"
 version = "0.1.0"
-description = "TBA"
+description = "Tesla token generator"
 homepage = "https://github.com/adriankumpf/tesla_auth"
 repository = "https://github.com/adriankumpf/tesla_auth"
 keywords = ["tesla", "oauth", "cli", "terminal"]
@@ -10,33 +10,17 @@ authors = ["Adrian Kumpf"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
 
-[package.metadata.bundle]
-name = "TeslaAuth"
-identifier = "io.github.adriankumpf.tesla_auth"
-# icon = ["32x32.png", "128x128.png", "128x128@2x.png"]
-# icon = ["examples/hello/icon*.png"]
-resources = []
-copyright = "Copyright (c) Adrian Kumpf 2021. All rights reserved."
-category = "Utility"
-long_description = """
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-eiusmod tempor incididunt ut labore et dolore magna aliqua.  Ut
-enim ad minim veniam, quis nostrud exercitation ullamco laboris
-nisi ut aliquip ex ea commodo consequat.
-"""
-deb_depends = []
-osx_frameworks = []
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 anyhow = "1.0.44"
+argh = "0.1.6"
 log = "0.4.14"
 oauth2 = "4.1.0"
 reqwest = { version = "0.11.4" , default-features = false, features = ["json", "rustls-tls"]}
 serde = "1.0.130"
 serde_json = "1.0.67"
-simple_logger = { version = "1.13.0", default-features = false, features = ["colors", "stderr"] }
+simple_logger = { version = "1.13.0", default-features = false, features = ["stderr"] }
 static_vcruntime = "1.5.1"
 wry = { version = "0.12", default-features = false, features = [] }
 

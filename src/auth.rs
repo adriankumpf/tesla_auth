@@ -105,6 +105,7 @@ fn exchange_sso_access_token(access_token: &AccessToken) -> anyhow::Result<Strin
         .header(AUTHORIZATION, format!("Bearer {}", access_token.secret()))
         .json(&body)
         .send()?
+        .error_for_status()?
         .json()?;
 
     Ok(tokens.access_token)
