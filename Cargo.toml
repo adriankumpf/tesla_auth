@@ -38,7 +38,7 @@ serde = "1.0.130"
 serde_json = "1.0.67"
 simple_logger = { version = "1.13.0", default-features = false, features = ["colors", "stderr"] }
 static_vcruntime = "1.5.1"
-wry = { version = "0.12", default-features = false, features = ["protocol"] }
+wry = { version = "0.12", default-features = false, features = [] }
 
 [profile.release]
 lto = true

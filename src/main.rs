@@ -5,7 +5,7 @@ use std::sync::mpsc::channel;
 use std::thread;
 
 use anyhow::anyhow;
-use log::{debug, error, info, LevelFilter};
+use log::{debug, error, LevelFilter};
 use oauth2::url::Url;
 use simple_logger::SimpleLogger;
 
@@ -15,7 +15,7 @@ use wry::application::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 use wry::application::keyboard::KeyCode;
 use wry::application::menu::{MenuBar, MenuId, MenuItem, MenuItemAttributes, MenuType};
 use wry::application::window::{Window, WindowBuilder};
-use wry::http::{Request, Response, ResponseBuilder};
+
 use wry::webview::{RpcRequest, RpcResponse, WebViewBuilder};
 use wry::Value;
 
@@ -23,12 +23,7 @@ mod auth;
 
 const INITIALIZATION_SCRIPT: &str = r#"
     window.addEventListener('DOMContentLoaded', function(event) {
-        var url = window.location.toString();
-
-        if (url.startsWith("https://auth.tesla.com/void/callback")) {
-            location.replace("wry://index.html?access=loading...&refresh=loading...");
-            rpc.call('url', url);
-        }
+        rpc.call('url', window.location.toString());
     });
 "#;
 
@@ -57,9 +52,8 @@ fn main() -> anyhow::Result<()> {
         .with_menu(menu)
         .build(&event_loop)?;
 
-    let webview = WebViewBuilder::new(window)?
+    let _webview = WebViewBuilder::new(window)?
         .with_initialization_script(INITIALIZATION_SCRIPT)
-        .with_custom_protocol("wry".into(), protocol_handler)
         .with_url(auth_url.as_str())?
         .with_rpc_handler(rpc_url_handler(auth_client, event_proxy))
         .build()?;
@@ -75,26 +69,28 @@ fn main() -> anyhow::Result<()> {
                 ..
             } => *control_flow = ControlFlow::Exit,
 
-            Event::UserEvent(CustomEvent::Tokens(tokens)) => {
-                info!("Received tokens: {:#?}", tokens);
-
-                let url = format!(
-                    "location.replace('wry://index.html?access={}&refresh={}');",
-                    tokens.access, tokens.refresh
-                );
-
-                webview.evaluate_script(&url).unwrap();
-            }
-
             Event::MenuEvent {
                 menu_id,
                 origin: MenuType::MenuBar,
                 ..
-            } => {
-                match menu_id {
-                    id if id == quit_id => *control_flow = ControlFlow::Exit,
-                    _ => (),
-                };
+            } if menu_id == quit_id => *control_flow = ControlFlow::Exit,
+
+            Event::UserEvent(CustomEvent::Tokens(tokens)) => {
+                print!(
+                    r#"
+--------------------------------- ACCESS TOKEN ---------------------------------
+
+{}
+
+--------------------------------- REFRESH TOKEN --------------------------------
+
+{}
+
+                "#,
+                    tokens.access, tokens.refresh
+                );
+
+                *control_flow = ControlFlow::Exit
             }
 
             _ => (),
@@ -155,30 +151,6 @@ fn rpc_url_handler(
     });
 
     handler
-}
-
-fn protocol_handler(request: &Request) -> wry::Result<Response> {
-    let url = request.uri().parse::<Url>()?;
-
-    match url.domain() {
-        Some("index.html") => {
-            let query = url.query_pairs().collect::<HashMap<_, _>>();
-
-            let content = match (query.get("access"), query.get("refresh")) {
-                (Some(access), Some(refresh)) => include_str!("../views/index.html")
-                    .replace("{access_token}", access)
-                    .replace("{refresh_token}", refresh)
-                    .as_bytes()
-                    .to_vec(),
-
-                (_, _) => vec![],
-            };
-
-            ResponseBuilder::new().mimetype("text/html").body(content)
-        }
-
-        domain => unimplemented!("Cannot open {:?}", domain),
-    }
 }
 
 fn parse_url(params: Value) -> anyhow::Result<Url> {
