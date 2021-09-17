@@ -9,14 +9,13 @@
 - [x] Display simple HTML page with access and refresh token
 - [x] Add GitHub Action
   - [x] Lint code
-  - [ ] Build binaries for different operating systems and attach them to a release
+  - [x] Build binaries for different operating systems and attach them to a release
 - [ ] Create macOS app, Windows .exe etc.
   - [ ] Add icons
   - [ ] Show app in doc
+  - [ ] Update CD action
 
 ## Platform-specific notes
-
-All platforms uses [tao](https://github.com/rust-windowing/tao) to build the window, and wry re-export it as application module. Here are the underlying web engine each platform uses, and some dependencies you might need to install.
 
 ### Linux
 
