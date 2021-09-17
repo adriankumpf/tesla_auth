@@ -1824,6 +1824,7 @@ dependencies = [
 name = "tesla_auth"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "log",
  "oauth2",
  "reqwest",

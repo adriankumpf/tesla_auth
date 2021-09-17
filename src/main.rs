@@ -1,19 +1,21 @@
 mod auth;
 
 use std::collections::HashMap;
-use std::sync::mpsc::{channel, Receiver};
+use std::sync::mpsc::channel;
 use std::thread;
 
-use log::{debug, info, LevelFilter};
+use anyhow::anyhow;
+
+use log::{debug, error, info, LevelFilter};
 use simple_logger::SimpleLogger;
 
 use oauth2::url::Url;
 
 use wry::application::accelerator::{Accelerator, SysMods};
 use wry::application::event::{Event, WindowEvent};
-use wry::application::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
+use wry::application::event_loop::{ControlFlow, EventLoop};
 use wry::application::keyboard::KeyCode;
-use wry::application::menu::{CustomMenuItem, MenuBar, MenuItem, MenuItemAttributes, MenuType};
+use wry::application::menu::{MenuBar, MenuId, MenuItem, MenuItemAttributes, MenuType};
 use wry::application::window::{Window, WindowBuilder};
 use wry::http::{Request, Response, ResponseBuilder};
 use wry::webview::{RpcRequest, WebViewBuilder};
@@ -25,9 +27,8 @@ const INITIALIZATION_SCRIPT: &str = r#"
 
         if (url.startsWith("https://auth.tesla.com/void/callback")) {
             location.replace("wry://index.html?access=loading...&refresh=loading...");
+            rpc.call('url', url);
         }
-
-        rpc.call('url', url);
     });
 "#;
 
@@ -36,36 +37,50 @@ enum CustomEvent {
     Tokens(auth::Tokens),
 }
 
-fn main() -> wry::Result<()> {
+fn main() -> anyhow::Result<()> {
     SimpleLogger::new()
         .with_level(LevelFilter::Off)
         .with_module_level("reqwest", LevelFilter::Debug)
         .with_module_level("tesla_auth", LevelFilter::Debug)
-        .init()
-        .unwrap();
+        .init()?;
 
     let event_loop = EventLoop::<CustomEvent>::with_user_event();
     let event_proxy = event_loop.create_proxy();
 
+    let client = auth::Client::new();
+    let auth_url = client.authorize_url();
+
     let (tx, rx) = channel();
 
     let handler = move |_window: &Window, req: RpcRequest| {
-        if req.method == "url" {
-            let url = parse_url(req.params.unwrap());
-            tx.send(url).unwrap();
+        if let ("url", Some(params)) = (req.method.as_str(), req.params) {
+            if let Ok(url) = parse_url(params) {
+                tx.send(url).unwrap();
+            }
         }
 
         None
     };
 
-    let mut client = auth::Client::new();
-    let auth_url = client.authorization_url();
-
     thread::spawn(move || {
-        handle_url_changes(rx, client, event_proxy);
+        while let Ok(url) = rx.recv() {
+            if auth::is_redirect_url(&url) {
+                let query: HashMap<_, _> = url.query_pairs().collect();
+
+                let state = query.get("state").expect("No state parameter found");
+                let code = query.get("code").expect("No code parameter found");
+
+                match client.retrieve_tokens(code, state) {
+                    Ok(tokens) => event_proxy.send_event(CustomEvent::Tokens(tokens)).unwrap(),
+                    Err(e) => error!("{}", e),
+                };
+
+                break;
+            }
+        }
     });
 
-    let (menu, quit_item) = build_menu();
+    let (menu, quit_id) = build_menu();
 
     let window = WindowBuilder::new()
         .with_title("Tesla Auth")
@@ -89,6 +104,7 @@ fn main() -> wry::Result<()> {
                 event: WindowEvent::CloseRequested,
                 ..
             } => *control_flow = ControlFlow::Exit,
+
             Event::UserEvent(CustomEvent::Tokens(tokens)) => {
                 info!("Received tokens: {:#?}", tokens);
 
@@ -99,22 +115,26 @@ fn main() -> wry::Result<()> {
 
                 webview.evaluate_script(&url).unwrap();
             }
+
             Event::MenuEvent {
                 menu_id,
                 origin: MenuType::MenuBar,
                 ..
             } => {
-                if menu_id == quit_item.clone().id() {
-                    *control_flow = ControlFlow::Exit;
-                }
-                println!("Clicked on {:?}", menu_id);
+                debug!("Clicked on {:?}", menu_id);
+
+                match menu_id {
+                    id if id == quit_id => *control_flow = ControlFlow::Exit,
+                    _ => (),
+                };
             }
+
             _ => (),
         }
     });
 }
 
-fn build_menu() -> (MenuBar, CustomMenuItem) {
+fn build_menu() -> (MenuBar, MenuId) {
     let mut menu_bar_menu = MenuBar::new();
     let mut menu = MenuBar::new();
 
@@ -131,35 +151,7 @@ fn build_menu() -> (MenuBar, CustomMenuItem) {
 
     menu_bar_menu.add_submenu("First menu", true, menu);
 
-    (menu_bar_menu, quit_item)
-}
-
-fn handle_url_changes(
-    rx: Receiver<Url>,
-    mut client: auth::Client,
-    event_proxy: EventLoopProxy<CustomEvent>,
-) {
-    let mut tokens_retrieved = false;
-
-    while let Ok(url) = rx.recv() {
-        if !auth::is_redirect_url(&url) || tokens_retrieved {
-            debug!("URL changed: {}", &url);
-            continue;
-        }
-
-        let query: HashMap<_, _> = url.query_pairs().collect();
-
-        let state = query.get("state").expect("No state parameter found");
-        let code = query.get("code").expect("No code parameter found");
-
-        client.verify_csrf_state(state.to_string());
-
-        let tokens = client.retrieve_tokens(code);
-
-        tokens_retrieved = true;
-
-        event_proxy.send_event(CustomEvent::Tokens(tokens)).unwrap();
-    }
+    (menu_bar_menu, quit_item.id())
 }
 
 fn protocol_handler(request: &Request) -> wry::Result<Response> {
@@ -169,23 +161,26 @@ fn protocol_handler(request: &Request) -> wry::Result<Response> {
         Some("index.html") => {
             let query = url.query_pairs().collect::<HashMap<_, _>>();
 
-            let (access, refresh) = (query.get("access").unwrap(), query.get("refresh").unwrap());
+            let content = match (query.get("access"), query.get("refresh")) {
+                (Some(access), Some(refresh)) => include_str!("../views/index.html")
+                    .replace("{access_token}", access)
+                    .replace("{refresh_token}", refresh)
+                    .as_bytes()
+                    .to_vec(),
 
-            let content = include_str!("../views/index.html")
-                .replace("{access_token}", access)
-                .replace("{refresh_token}", refresh);
+                (_, _) => vec![],
+            };
 
-            ResponseBuilder::new()
-                .mimetype("text/html")
-                .body(content.as_bytes().to_vec())
+            ResponseBuilder::new().mimetype("text/html").body(content)
         }
 
         domain => unimplemented!("Cannot open {:?}", domain),
     }
 }
 
-fn parse_url(params: Value) -> Url {
-    let args = serde_json::from_value::<Vec<String>>(params).unwrap();
-    let url = args.first().unwrap();
-    Url::parse(url).expect("Invalid URL")
+fn parse_url(params: Value) -> anyhow::Result<Url> {
+    match &serde_json::from_value::<Vec<String>>(params)?[..] {
+        [url] => Ok(Url::parse(url)?),
+        _ => Err(anyhow!("Invalid url param!")),
+    }
 }

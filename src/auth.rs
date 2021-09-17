@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use anyhow::anyhow;
+
 use oauth2::basic::BasicClient;
 use oauth2::reqwest::http_client;
 use oauth2::url::Url;
@@ -37,14 +39,15 @@ pub struct Tokens {
 }
 
 pub struct Client {
+    auth_url: Url,
     oauth_client: BasicClient,
-    pkce_verifier: Option<PkceCodeVerifier>,
-    csrf_token: Option<CsrfToken>,
+    pkce_verifier: PkceCodeVerifier,
+    csrf_token: CsrfToken,
 }
 
 impl Client {
-    pub fn new() -> Self {
-        let client = BasicClient::new(
+    pub fn new() -> Client {
+        let oauth_client = BasicClient::new(
             ClientId::new(CLIENT_ID.to_string()),
             None,
             AuthUrl::new(AUTH_URL.to_string()).unwrap(),
@@ -53,18 +56,9 @@ impl Client {
         .set_auth_type(AuthType::RequestBody)
         .set_redirect_uri(RedirectUrl::new(REDIRECT_URL.to_string()).unwrap());
 
-        Client {
-            oauth_client: client,
-            pkce_verifier: None,
-            csrf_token: None,
-        }
-    }
-
-    pub fn authorization_url(&mut self) -> Url {
         let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
 
-        let (auth_url, csrf_token) = self
-            .oauth_client
+        let (auth_url, csrf_token) = oauth_client
             .authorize_url(CsrfToken::new_random)
             .add_scope(Scope::new("openid".to_string()))
             .add_scope(Scope::new("email".to_string()))
@@ -72,39 +66,40 @@ impl Client {
             .set_pkce_challenge(pkce_challenge)
             .url();
 
-        self.pkce_verifier = Some(pkce_verifier);
-        self.csrf_token = Some(csrf_token);
-
-        auth_url
+        Client {
+            oauth_client,
+            auth_url,
+            pkce_verifier,
+            csrf_token,
+        }
     }
 
-    pub fn verify_csrf_state(&self, state: String) {
-        let csrf_token = self.csrf_token.as_ref().unwrap();
-        assert_eq!(&state, csrf_token.secret());
+    pub fn authorize_url(&self) -> Url {
+        self.auth_url.clone()
     }
 
-    pub fn retrieve_tokens(&mut self, code: &str) -> Tokens {
-        let code = AuthorizationCode::new(code.to_string());
-        let pkce_verifier = self.pkce_verifier.take().unwrap();
+    pub fn retrieve_tokens(self, code: &str, state: &str) -> anyhow::Result<Tokens> {
+        if state != self.csrf_token.secret() {
+            return Err(anyhow!("CSRF state does not match!"));
+        }
 
         let tokens = self
             .oauth_client
-            .exchange_code(code)
-            .set_pkce_verifier(pkce_verifier)
-            .request(http_client)
-            .unwrap();
+            .exchange_code(AuthorizationCode::new(code.to_string()))
+            .set_pkce_verifier(self.pkce_verifier)
+            .request(http_client)?;
 
-        let access_token = exchange_sso_access_token(tokens.access_token());
+        let access_token = exchange_sso_access_token(tokens.access_token())?;
         let refresh_token = tokens.refresh_token().unwrap().secret().to_string();
 
-        Tokens {
+        Ok(Tokens {
             access: access_token,
             refresh: refresh_token,
-        }
+        })
     }
 }
 
-fn exchange_sso_access_token(access_token: &AccessToken) -> String {
+fn exchange_sso_access_token(access_token: &AccessToken) -> anyhow::Result<String> {
     let mut body = HashMap::new();
     body.insert("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer");
     body.insert("client_id", SSO_CLIENT_ID);
@@ -114,10 +109,8 @@ fn exchange_sso_access_token(access_token: &AccessToken) -> String {
         .post(SSO_TOKEN_URL)
         .header(AUTHORIZATION, format!("Bearer {}", access_token.secret()))
         .json(&body)
-        .send()
-        .unwrap()
-        .json()
-        .unwrap();
+        .send()?
+        .json()?;
 
-    tokens.access_token
+    Ok(tokens.access_token)
 }
