@@ -28,9 +28,9 @@ sudo dnf install gtk3-devel webkit2gtk3-devel libappindicator-gtk3-devel
 
 WebKit is native on macOS so everything should be fine.
 
-### Windows
+### Windows (not tested!)
 
-WebView2 provided by Microsoft Edge Chromium is used. So tesla_auth supports Windows 7, 8, and 10.
+WebView2 is powered by Microsoft Edge (Chromium). So tesla_auth should support Windows 7, 8, and 10.
 
 ## License
 

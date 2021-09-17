@@ -16,21 +16,21 @@ use wry::application::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 use wry::application::keyboard::KeyCode;
 use wry::application::menu::{MenuBar, MenuId, MenuItem, MenuItemAttributes, MenuType};
 use wry::application::window::{Window, WindowBuilder};
-
 use wry::webview::{RpcRequest, RpcResponse, WebViewBuilder};
 use wry::Value;
 
 mod auth;
 
 const INITIALIZATION_SCRIPT: &str = r#"
-window.addEventListener('DOMContentLoaded', function() {
+window.addEventListener('DOMContentLoaded', function(event) {
     rpc.call('url', window.location.toString());
 });
 "#;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 enum CustomEvent {
     Tokens(auth::Tokens),
+    Failure(anyhow::Error),
 }
 
 #[derive(FromArgs, Debug)]
@@ -44,13 +44,17 @@ struct Args {
 fn main() -> anyhow::Result<()> {
     let args: Args = argh::from_env();
 
-    if args.debug {
-        SimpleLogger::new()
-            .with_level(LevelFilter::Off)
-            .with_module_level("reqwest", LevelFilter::Debug)
-            .with_module_level("tesla_auth", LevelFilter::Debug)
-            .init()?;
-    }
+    let level_filter = if args.debug {
+        LevelFilter::Debug
+    } else {
+        LevelFilter::Error
+    };
+
+    SimpleLogger::new()
+        .with_level(LevelFilter::Off)
+        .with_module_level("reqwest", level_filter)
+        .with_module_level("tesla_auth", level_filter)
+        .init()?;
 
     let event_loop = EventLoop::<CustomEvent>::with_user_event();
     let event_proxy = event_loop.create_proxy();
@@ -88,21 +92,13 @@ fn main() -> anyhow::Result<()> {
                 ..
             } if menu_id == quit_id => *control_flow = ControlFlow::Exit,
 
+            Event::UserEvent(CustomEvent::Failure(e)) => {
+                error!("{}", e);
+                *control_flow = ControlFlow::Exit
+            }
+
             Event::UserEvent(CustomEvent::Tokens(tokens)) => {
-                print!(
-                    r#"
---------------------------------- ACCESS TOKEN ---------------------------------
-
-{}
-
---------------------------------- REFRESH TOKEN --------------------------------
-
-{}
-
-                "#,
-                    tokens.access, tokens.refresh
-                );
-
+                println!("{}", tokens);
                 *control_flow = ControlFlow::Exit
             }
 
@@ -155,7 +151,7 @@ fn rpc_url_handler(
 
                 match client.retrieve_tokens(code, state) {
                     Ok(tokens) => event_proxy.send_event(CustomEvent::Tokens(tokens)).unwrap(),
-                    Err(e) => error!("{}", e),
+                    Err(e) => event_proxy.send_event(CustomEvent::Failure(e)).unwrap(),
                 };
 
                 break;

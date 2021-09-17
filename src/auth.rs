@@ -1,6 +1,8 @@
 use std::collections::HashMap;
+use std::fmt;
 
 use anyhow::anyhow;
+use chrono::{serde::ts_seconds, DateTime, Duration, Utc};
 use reqwest::header::AUTHORIZATION;
 use serde::Deserialize;
 
@@ -9,7 +11,7 @@ use oauth2::reqwest::http_client;
 use oauth2::url::Url;
 use oauth2::{
     AccessToken, AuthType, AuthUrl, AuthorizationCode, ClientId, CsrfToken, PkceCodeChallenge,
-    PkceCodeVerifier, RedirectUrl, Scope, TokenResponse, TokenUrl,
+    PkceCodeVerifier, RedirectUrl, RefreshToken, Scope, TokenResponse, TokenUrl,
 };
 
 const CLIENT_ID: &str = "ownerapi";
@@ -28,12 +30,49 @@ pub fn is_redirect_url(url: &Url) -> bool {
 #[derive(Deserialize, Debug)]
 struct SsoTokenResponse {
     access_token: String,
+    expires_in: i64,
+    #[serde(with = "ts_seconds")]
+    created_at: DateTime<Utc>,
+}
+
+impl SsoTokenResponse {
+    fn access_token(&self) -> AccessToken {
+        AccessToken::new(self.access_token.clone())
+    }
+    fn expires_at(&self) -> DateTime<Utc> {
+        self.created_at + Duration::seconds(self.expires_in)
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct Tokens {
-    pub access: String,
-    pub refresh: String,
+    pub access: AccessToken,
+    pub refresh: RefreshToken,
+    pub expires_at: DateTime<Utc>,
+}
+
+impl fmt::Display for Tokens {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            r#"
+--------------------------------- ACCESS TOKEN ---------------------------------
+
+{}
+
+--------------------------------- REFRESH TOKEN --------------------------------
+
+{}
+
+---------------------------------- VALID UNTIL ---------------------------------
+
+{}
+                "#,
+            self.access.secret(),
+            self.refresh.secret(),
+            self.expires_at
+        )
+    }
 }
 
 pub struct Client {
@@ -87,14 +126,17 @@ impl Client {
             .set_pkce_verifier(self.pkce_verifier)
             .request(http_client)?;
 
-        let access = exchange_sso_access_token(tokens.access_token())?;
-        let refresh = tokens.refresh_token().unwrap().secret().to_string();
+        let sso_response = exchange_sso_access_token(tokens.access_token())?;
 
-        Ok(Tokens { access, refresh })
+        Ok(Tokens {
+            access: sso_response.access_token(),
+            refresh: tokens.refresh_token().unwrap().clone(),
+            expires_at: sso_response.expires_at(),
+        })
     }
 }
 
-fn exchange_sso_access_token(access_token: &AccessToken) -> anyhow::Result<String> {
+fn exchange_sso_access_token(access_token: &AccessToken) -> anyhow::Result<SsoTokenResponse> {
     let mut body = HashMap::new();
     body.insert("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer");
     body.insert("client_id", SSO_CLIENT_ID);
@@ -108,5 +150,5 @@ fn exchange_sso_access_token(access_token: &AccessToken) -> anyhow::Result<Strin
         .error_for_status()?
         .json()?;
 
-    Ok(tokens.access_token)
+    Ok(tokens)
 }
