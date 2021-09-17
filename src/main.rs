@@ -1,4 +1,4 @@
-mod auth;
+extern crate static_vcruntime;
 
 use std::collections::HashMap;
 use std::sync::mpsc::channel;
@@ -18,6 +18,8 @@ use wry::application::window::{Window, WindowBuilder};
 use wry::http::{Request, Response, ResponseBuilder};
 use wry::webview::{RpcRequest, RpcResponse, WebViewBuilder};
 use wry::Value;
+
+mod auth;
 
 const INITIALIZATION_SCRIPT: &str = r#"
     window.addEventListener('DOMContentLoaded', function(event) {
