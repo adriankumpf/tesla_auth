@@ -28,6 +28,12 @@ Options:
   --help            display usage information
 ```
 
+### Steps
+
+1. Run the `tesla_auth` executable (either by double-clicking it or directly in a terminal)
+2. Enter your Tesla account credentials (and MFA code if necessary)
+3. You'll get a final window where you can select and copy the access token and refresh token
+
 ## Platform-specific dependencies
 
 ### macOS
@@ -40,7 +46,7 @@ WebView2 is powered by Microsoft Edge (Chromium). At the moment it **requires a 
 
 ### Linux
 
-[WebKitGTK](https://webkitgtk.org/) is required for WebView. So please make sure following packages are installed:
+[WebKitGTK](https://webkitgtk.org/) is required for WebView. So please make sure the following packages are installed:
 
 #### Arch Linux / Manjaro:
 
