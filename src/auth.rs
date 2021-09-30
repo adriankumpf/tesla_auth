@@ -1,10 +1,7 @@
-use std::collections::HashMap;
 use std::fmt;
+use std::time::Duration;
 
 use anyhow::anyhow;
-use chrono::{serde::ts_seconds, DateTime, Duration, Utc};
-use reqwest::header::AUTHORIZATION;
-use serde::Deserialize;
 
 use oauth2::basic::BasicClient;
 use oauth2::reqwest::http_client;
@@ -19,36 +16,15 @@ const AUTH_URL: &str = "https://auth.tesla.com/oauth2/v3/authorize";
 const TOKEN_URL: &str = "https://auth.tesla.com/oauth2/v3/token";
 const REDIRECT_URL: &str = "https://auth.tesla.com/void/callback";
 
-const SSO_CLIENT_ID: &str = "81527cff06843c8634fdc09e8ac0abefb46ac849f38fe1e431c2ef2106796384";
-const SSO_CLIENT_SECRET: &str = "c7257eb71a564034f9419ee651c7d0e5f7aa6bfbd18bafb5c5c033b093bb2fa3";
-const SSO_TOKEN_URL: &str = "https://owner-api.teslamotors.com/oauth/token";
-
 pub fn is_redirect_url(url: &Url) -> bool {
     url.to_string().starts_with(REDIRECT_URL)
-}
-
-#[derive(Deserialize, Debug)]
-struct SsoTokenResponse {
-    access_token: String,
-    expires_in: i64,
-    #[serde(with = "ts_seconds")]
-    created_at: DateTime<Utc>,
-}
-
-impl SsoTokenResponse {
-    fn access_token(&self) -> AccessToken {
-        AccessToken::new(self.access_token.clone())
-    }
-    fn expires_at(&self) -> DateTime<Utc> {
-        self.created_at + Duration::seconds(self.expires_in)
-    }
 }
 
 #[derive(Debug, Clone)]
 pub struct Tokens {
     pub access: AccessToken,
     pub refresh: RefreshToken,
-    pub expires_at: DateTime<Utc>,
+    pub expires_in: Duration,
 }
 
 impl fmt::Display for Tokens {
@@ -64,13 +40,13 @@ impl fmt::Display for Tokens {
 
 {}
 
----------------------------------- VALID UNTIL ---------------------------------
+----------------------------------- VALID FOR ----------------------------------
 
-{}
+{} hours
                 "#,
             self.access.secret(),
             self.refresh.secret(),
-            self.expires_at
+            self.expires_in.as_secs() / (60 * 60)
         )
     }
 }
@@ -126,29 +102,10 @@ impl Client {
             .set_pkce_verifier(self.pkce_verifier)
             .request(http_client)?;
 
-        let sso_response = exchange_sso_access_token(tokens.access_token())?;
-
         Ok(Tokens {
-            access: sso_response.access_token(),
+            access: tokens.access_token().clone(),
             refresh: tokens.refresh_token().unwrap().clone(),
-            expires_at: sso_response.expires_at(),
+            expires_in: (tokens.expires_in().unwrap()),
         })
     }
-}
-
-fn exchange_sso_access_token(access_token: &AccessToken) -> anyhow::Result<SsoTokenResponse> {
-    let mut body = HashMap::new();
-    body.insert("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer");
-    body.insert("client_id", SSO_CLIENT_ID);
-    body.insert("client_secret", SSO_CLIENT_SECRET);
-
-    let tokens: SsoTokenResponse = reqwest::blocking::Client::new()
-        .post(SSO_TOKEN_URL)
-        .header(AUTHORIZATION, format!("Bearer {}", access_token.secret()))
-        .json(&body)
-        .send()?
-        .error_for_status()?
-        .json()?;
-
-    Ok(tokens)
 }

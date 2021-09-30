@@ -15,16 +15,16 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 anyhow = "1.0.44"
 argh = "0.1.6"
-chrono = { version = "0.4.19", default-features = false, features = ["serde"] }
 log = "0.4.14"
 oauth2 = "4.1.0"
 reqwest = { version = "0.11.4", default-features = false, features = ["json", "rustls-tls"] }
-serde = "1.0.130"
+serde = { version = "1.0.130", default-features = false, features = [] }
 serde_json = "1.0.68"
 simple_logger = { version = "1.13.0", default-features = false, features = ["stderr"] }
 static_vcruntime = "1.5.1"
 wry = { version = "0.12.2", default-features = false, features = [] }
 
 [profile.release]
+opt-level = "z"  # Optimize for size.
 lto = true
 codegen-units = 1

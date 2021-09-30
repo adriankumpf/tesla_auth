@@ -120,14 +120,14 @@ fn main() -> anyhow::Result<()> {
                     const html = `
                         <h4 style="text-align: center;">Access Token</h4>
                         <textarea readonly onclick="this.setSelectionRange(0, this.value.length)" 
-                                  cols="80" rows="1" style="resize:none;padding:4px;font-size:0.9em;"
+                                  cols="140" rows="12" style="resize:none;padding:4px;font-size:0.9em;"
                         >{access_token}</textarea>
                         <h4 style="text-align: center;">Refresh Token</h4>
                         <textarea readonly onclick="this.setSelectionRange(0, this.value.length)" 
-                                  cols="80" rows="3" style="resize:none;padding:4px;font-size:0.9em;"
+                                  cols="140" rows="12" style="resize:none;padding:4px;font-size:0.9em;"
                         >{refresh_token}</textarea>
                         <small style="margin-top:12px;margin-bottom:20px;text-align:center;color:seagreen;">
-                        Valid until {expires_at}
+                        Valid for {expires_in} hours
                         </small>
                     `;
 
@@ -135,7 +135,7 @@ fn main() -> anyhow::Result<()> {
                 "#
                 .replace("{access_token}", tokens.access.secret())
                 .replace("{refresh_token}", tokens.refresh.secret())
-                .replace("{expires_at}", &tokens.expires_at.to_string());
+                .replace("{expires_in}", &format!("{}", tokens.expires_in.as_secs() / (60 * 60)));
 
                 webview.evaluate_script(&script).unwrap();
             }
