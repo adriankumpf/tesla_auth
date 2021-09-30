@@ -20,6 +20,7 @@ use wry::webview::{RpcRequest, RpcResponse, WebViewBuilder};
 use wry::Value;
 
 mod auth;
+mod htime;
 
 const INITIALIZATION_SCRIPT: &str = r#"
 window.addEventListener('DOMContentLoaded', (event) => {
@@ -42,6 +43,10 @@ enum CustomEvent {
 #[derive(FromArgs, Debug)]
 /// Tesla API tokens generator
 struct Args {
+    /// exchange SSO access token for long-lived Owner API token
+    #[argh(switch, short = 'o')]
+    owner_api_token: bool,
+
     /// print debug output
     #[argh(switch, short = 'd')]
     debug: bool,
@@ -78,7 +83,7 @@ fn main() -> anyhow::Result<()> {
     let webview = WebViewBuilder::new(window)?
         .with_initialization_script(INITIALIZATION_SCRIPT)
         .with_url(auth_url.as_str())?
-        .with_rpc_handler(rpc_url_handler(auth_client, event_proxy))
+        .with_rpc_handler(url_handler(auth_client, event_proxy, args.owner_api_token))
         .build()?;
 
     debug!("Opening {} ...", auth_url);
@@ -119,15 +124,15 @@ fn main() -> anyhow::Result<()> {
                 let script = r#"
                     const html = `
                         <h4 style="text-align: center;">Access Token</h4>
-                        <textarea readonly onclick="this.setSelectionRange(0, this.value.length)" 
+                        <textarea readonly onclick="this.setSelectionRange(0, this.value.length)"
                                   cols="140" rows="12" style="resize:none;padding:4px;font-size:0.9em;"
                         >{access_token}</textarea>
                         <h4 style="text-align: center;">Refresh Token</h4>
-                        <textarea readonly onclick="this.setSelectionRange(0, this.value.length)" 
+                        <textarea readonly onclick="this.setSelectionRange(0, this.value.length)"
                                   cols="140" rows="12" style="resize:none;padding:4px;font-size:0.9em;"
                         >{refresh_token}</textarea>
                         <small style="margin-top:12px;margin-bottom:20px;text-align:center;color:seagreen;">
-                        Valid for {expires_in} hours
+                        Valid for {expires_in}
                         </small>
                     `;
 
@@ -135,7 +140,7 @@ fn main() -> anyhow::Result<()> {
                 "#
                 .replace("{access_token}", tokens.access.secret())
                 .replace("{refresh_token}", tokens.refresh.secret())
-                .replace("{expires_in}", &format!("{}", tokens.expires_in.as_secs() / (60 * 60)));
+                .replace("{expires_in}", &format!("{}", tokens.expires_in));
 
                 webview.evaluate_script(&script).unwrap();
             }
@@ -163,9 +168,10 @@ fn build_menu() -> (MenuBar, MenuId) {
     (menu_bar, quit_item.id())
 }
 
-fn rpc_url_handler(
+fn url_handler(
     client: auth::Client,
     event_proxy: EventLoopProxy<CustomEvent>,
+    exchange_sso_token: bool,
 ) -> impl Fn(&Window, RpcRequest) -> Option<RpcResponse> {
     let (tx, rx) = channel();
 
@@ -187,7 +193,7 @@ fn rpc_url_handler(
                 let state = query.get("state").expect("No state parameter found");
                 let code = query.get("code").expect("No code parameter found");
 
-                match client.retrieve_tokens(code, state) {
+                match client.retrieve_tokens(code, state, exchange_sso_token) {
                     Ok(tokens) => event_proxy.send_event(CustomEvent::Tokens(tokens)).unwrap(),
                     Err(e) => event_proxy.send_event(CustomEvent::Failure(e)).unwrap(),
                 };
