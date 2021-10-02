@@ -1,17 +1,17 @@
 use std::fmt;
-use std::time::Duration;
+use std::time;
 
 /// A wrapper type that allows to display a Duration
 #[derive(Debug, Clone)]
-pub struct FormattedDuration(Duration);
+pub struct Duration(time::Duration);
 
-impl FormattedDuration {
-    pub fn new(value: Duration) -> Self {
-        Self(value)
+impl From<time::Duration> for Duration {
+    fn from(duration: time::Duration) -> Self {
+        Self(duration)
     }
 }
 
-impl fmt::Display for FormattedDuration {
+impl fmt::Display for Duration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", pretty_print(&self.0))
     }
@@ -21,7 +21,7 @@ const MINUTE: u64 = 60;
 const HOUR: u64 = 60 * MINUTE;
 const DAY: u64 = 24 * HOUR;
 
-fn pretty_print(d: &Duration) -> String {
+fn pretty_print(d: &time::Duration) -> String {
     let mut d = d.as_secs();
     let mut out = vec![];
 
@@ -48,7 +48,7 @@ fn pretty_print(d: &Duration) -> String {
 
 #[test]
 fn test_pretty_print() {
-    let pp = |secs| pretty_print(&Duration::from_secs(secs));
+    let pp = |secs| pretty_print(&time::Duration::from_secs(secs));
 
     assert_eq!(pp(0), "");
     assert_eq!(pp(MINUTE - 1), "");

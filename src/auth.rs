@@ -1,20 +1,21 @@
 use std::collections::HashMap;
+use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::time::Duration;
 
 use anyhow::anyhow;
 use reqwest::header::AUTHORIZATION;
-use serde::Deserialize;
 
 use oauth2::basic::BasicClient;
 use oauth2::reqwest::http_client;
 use oauth2::url::Url;
 use oauth2::{
-    AccessToken, AuthType, AuthUrl, AuthorizationCode, ClientId, CsrfToken, PkceCodeChallenge,
-    PkceCodeVerifier, RedirectUrl, RefreshToken, Scope, TokenResponse, TokenUrl,
+    AccessToken, AuthType, AuthUrl, AuthorizationCode, ClientId, CsrfToken, ExtraTokenFields,
+    PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, RefreshToken, Scope, StandardTokenResponse,
+    TokenResponse, TokenType, TokenUrl,
 };
 
-use crate::htime::FormattedDuration;
+use crate::htime;
 
 const CLIENT_ID: &str = "ownerapi";
 const AUTH_URL: &str = "https://auth.tesla.com/oauth2/v3/authorize";
@@ -33,7 +34,7 @@ pub fn is_redirect_url(url: &Url) -> bool {
 pub struct Tokens {
     pub access: AccessToken,
     pub refresh: RefreshToken,
-    pub expires_in: FormattedDuration,
+    pub expires_in: htime::Duration,
 }
 
 impl fmt::Display for Tokens {
@@ -110,25 +111,26 @@ impl Client {
             return Err(anyhow!("CSRF state does not match!"));
         }
 
-        let tokens = self
+        let sso_token: SsoToken = self
             .oauth_client
             .exchange_code(AuthorizationCode::new(code.to_string()))
             .set_pkce_verifier(self.pkce_verifier)
-            .request(http_client)?;
+            .request(http_client)?
+            .try_into()?;
 
         let tokens = if exchange_sso_token {
-            let oa_response = exchange_sso_access_token(tokens.access_token())?;
+            let oa_token = exchange_sso_access_token(&sso_token.access_token)?;
 
             Tokens {
-                access: oa_response.access_token(),
-                refresh: tokens.refresh_token().unwrap().clone(),
-                expires_in: FormattedDuration::new(oa_response.expires_in()),
+                access: oa_token.access_token,
+                refresh: sso_token.refresh_token,
+                expires_in: oa_token.expires_in.into(),
             }
         } else {
             Tokens {
-                access: tokens.access_token().clone(),
-                refresh: tokens.refresh_token().unwrap().clone(),
-                expires_in: FormattedDuration::new(tokens.expires_in().unwrap()),
+                access: sso_token.access_token,
+                refresh: sso_token.refresh_token,
+                expires_in: sso_token.expires_in.into(),
             }
         };
 
@@ -136,34 +138,74 @@ impl Client {
     }
 }
 
-#[derive(Deserialize, Debug)]
+struct SsoToken {
+    access_token: AccessToken,
+    refresh_token: RefreshToken,
+    expires_in: Duration,
+}
+
+impl<EF, TT> TryFrom<StandardTokenResponse<EF, TT>> for SsoToken
+where
+    EF: ExtraTokenFields,
+    TT: TokenType,
+{
+    type Error = anyhow::Error;
+
+    fn try_from(sso: StandardTokenResponse<EF, TT>) -> Result<Self, Self::Error> {
+        let access_token = sso.access_token().clone();
+
+        let refresh_token = sso
+            .refresh_token()
+            .cloned()
+            .ok_or_else(|| anyhow!("refresh_token field missing"))?;
+
+        let expires_in = sso
+            .expires_in()
+            .ok_or_else(|| anyhow!("expires_in field missing"))?;
+
+        Ok(Self {
+            access_token,
+            refresh_token,
+            expires_in,
+        })
+    }
+}
+
+#[derive(serde::Deserialize)]
 struct OwnerApiTokenResponse {
     access_token: String,
     expires_in: u64,
 }
 
-impl OwnerApiTokenResponse {
-    fn access_token(&self) -> AccessToken {
-        AccessToken::new(self.access_token.clone())
-    }
-    fn expires_in(&self) -> Duration {
-        Duration::from_secs(self.expires_in)
+struct OwnerApiToken {
+    access_token: AccessToken,
+    expires_in: Duration,
+}
+
+impl From<OwnerApiTokenResponse> for OwnerApiToken {
+    fn from(oa: OwnerApiTokenResponse) -> Self {
+        Self {
+            access_token: AccessToken::new(oa.access_token.clone()),
+            expires_in: Duration::from_secs(oa.expires_in),
+        }
     }
 }
 
-fn exchange_sso_access_token(access_token: &AccessToken) -> anyhow::Result<OwnerApiTokenResponse> {
+fn exchange_sso_access_token(access_token: &AccessToken) -> anyhow::Result<OwnerApiToken> {
     let mut body = HashMap::new();
     body.insert("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer");
     body.insert("client_id", OA_CLIENT_ID);
     body.insert("client_secret", OA_CLIENT_SECRET);
 
-    let tokens = reqwest::blocking::Client::new()
+    let req = reqwest::blocking::Client::new()
         .post(OA_TOKEN_URL)
         .header(AUTHORIZATION, format!("Bearer {}", access_token.secret()))
-        .json(&body)
+        .json(&body);
+
+    let tokens = req
         .send()?
         .error_for_status()?
-        .json()?;
+        .json::<OwnerApiTokenResponse>()?;
 
-    Ok(tokens)
+    Ok(tokens.into())
 }
