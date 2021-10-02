@@ -5,8 +5,7 @@ use std::sync::mpsc::channel;
 use std::thread;
 
 use anyhow::anyhow;
-use argh::FromArgs;
-use log::{debug, error, LevelFilter};
+use log::LevelFilter;
 use oauth2::url::Url;
 use simple_logger::SimpleLogger;
 
@@ -17,7 +16,6 @@ use wry::application::keyboard::KeyCode;
 use wry::application::menu::{MenuBar, MenuId, MenuItem, MenuItemAttributes, MenuType};
 use wry::application::window::{Window, WindowBuilder};
 use wry::webview::{RpcRequest, RpcResponse, WebViewBuilder};
-use wry::Value;
 
 mod auth;
 mod htime;
@@ -40,7 +38,7 @@ enum CustomEvent {
     Failure(anyhow::Error),
 }
 
-#[derive(FromArgs, Debug)]
+#[derive(argh::FromArgs, Debug)]
 /// Tesla API tokens generator
 struct Args {
     /// exchange SSO access token for long-lived Owner API token
@@ -76,7 +74,7 @@ fn main() -> anyhow::Result<()> {
         .with_rpc_handler(url_handler(auth_client, event_proxy, args.owner_api_token))
         .build()?;
 
-    debug!("Opening {} ...", auth_url);
+    log::debug!("Opening {} ...", auth_url);
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
@@ -94,7 +92,7 @@ fn main() -> anyhow::Result<()> {
             } if menu_id == quit_id => *control_flow = ControlFlow::Exit,
 
             Event::UserEvent(CustomEvent::Failure(e)) => {
-                error!("{}", e);
+                log::error!("{}", e);
                 webview.evaluate_script(&render_error_view(e)).unwrap();
             }
 
@@ -149,16 +147,6 @@ fn url_handler(
 ) -> impl Fn(&Window, RpcRequest) -> Option<RpcResponse> {
     let (tx, rx) = channel();
 
-    let handler = move |_window: &Window, req: RpcRequest| {
-        if let ("url", Some(params)) = (req.method.as_str(), req.params) {
-            if let Ok(url) = parse_url(params) {
-                tx.send(url).unwrap();
-            }
-        }
-
-        None
-    };
-
     thread::spawn(move || {
         while let Ok(url) = rx.recv() {
             if auth::is_redirect_url(&url) {
@@ -167,20 +155,29 @@ fn url_handler(
                 let state = query.get("state").expect("No state parameter found");
                 let code = query.get("code").expect("No code parameter found");
 
-                match client.retrieve_tokens(code, state, exchange_sso_token) {
-                    Ok(tokens) => event_proxy.send_event(CustomEvent::Tokens(tokens)).unwrap(),
-                    Err(e) => event_proxy.send_event(CustomEvent::Failure(e)).unwrap(),
+                let event = match client.retrieve_tokens(code, state, exchange_sso_token) {
+                    Ok(tokens) => CustomEvent::Tokens(tokens),
+                    Err(error) => CustomEvent::Failure(error),
                 };
 
-                break;
+                return event_proxy.send_event(event).unwrap();
             }
         }
     });
 
-    handler
+    move |_window: &Window, req: RpcRequest| {
+        if let ("url", Some(params)) = (req.method.as_str(), req.params) {
+            if let Ok(url) = parse_url(params) {
+                log::debug!("URL changed: {}", url);
+                tx.send(url).unwrap();
+            }
+        }
+
+        None
+    }
 }
 
-fn parse_url(params: Value) -> anyhow::Result<Url> {
+fn parse_url(params: wry::Value) -> anyhow::Result<Url> {
     match &serde_json::from_value::<Vec<String>>(params)?[..] {
         [url] => Ok(Url::parse(url)?),
         _ => Err(anyhow!("Invalid url param!")),
