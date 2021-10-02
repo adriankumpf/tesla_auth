@@ -55,17 +55,7 @@ struct Args {
 fn main() -> anyhow::Result<()> {
     let args: Args = argh::from_env();
 
-    let level_filter = if args.debug {
-        LevelFilter::Debug
-    } else {
-        LevelFilter::Error
-    };
-
-    SimpleLogger::new()
-        .with_level(LevelFilter::Off)
-        .with_module_level("reqwest", level_filter)
-        .with_module_level("tesla_auth", level_filter)
-        .init()?;
+    init_logger(args.debug)?;
 
     let event_loop = EventLoop::<CustomEvent>::with_user_event();
     let event_proxy = event_loop.create_proxy();
@@ -105,49 +95,33 @@ fn main() -> anyhow::Result<()> {
 
             Event::UserEvent(CustomEvent::Failure(e)) => {
                 error!("{}", e);
-
-                let script = r#"
-                    const html = `
-                        <h4 style="text-align: center;">An error occured. Please try again ...</h4>
-                        <p style="text-align: center;color:red;margin-bottom:20px;">{msg}</p>
-                    `;
-                    document.querySelector("h1.h1").outerHTML = html;
-                "#
-                .replace("{msg}", &e.to_string());
-
-                webview.evaluate_script(&script).unwrap();
+                webview.evaluate_script(&render_error_view(e)).unwrap();
             }
 
-            Event::UserEvent(CustomEvent::Tokens(tokens)) => {
-                println!("{}", tokens);
-
-                let script = r#"
-                    const html = `
-                        <h4 style="text-align: center;">Access Token</h4>
-                        <textarea readonly onclick="this.setSelectionRange(0, this.value.length)"
-                                  cols="140" rows="12" style="resize:none;padding:4px;font-size:0.9em;"
-                        >{access_token}</textarea>
-                        <h4 style="text-align: center;">Refresh Token</h4>
-                        <textarea readonly onclick="this.setSelectionRange(0, this.value.length)"
-                                  cols="140" rows="12" style="resize:none;padding:4px;font-size:0.9em;"
-                        >{refresh_token}</textarea>
-                        <small style="margin-top:12px;margin-bottom:20px;text-align:center;color:seagreen;">
-                        Valid for {expires_in}
-                        </small>
-                    `;
-
-                    document.querySelector("h1.h1").outerHTML = html;
-                "#
-                .replace("{access_token}", tokens.access.secret())
-                .replace("{refresh_token}", tokens.refresh.secret())
-                .replace("{expires_in}", &format!("{}", tokens.expires_in));
-
-                webview.evaluate_script(&script).unwrap();
+            Event::UserEvent(CustomEvent::Tokens(t)) => {
+                println!("{}", t);
+                webview.evaluate_script(&render_tokens_view(t)).unwrap();
             }
 
             _ => (),
         }
     });
+}
+
+fn init_logger(debug: bool) -> anyhow::Result<()> {
+    let level_filter = if debug {
+        LevelFilter::Debug
+    } else {
+        LevelFilter::Error
+    };
+
+    SimpleLogger::new()
+        .with_level(LevelFilter::Off)
+        .with_module_level("reqwest", level_filter)
+        .with_module_level("tesla_auth", level_filter)
+        .init()?;
+
+    Ok(())
 }
 
 fn build_menu() -> (MenuBar, MenuId) {
@@ -211,4 +185,38 @@ fn parse_url(params: Value) -> anyhow::Result<Url> {
         [url] => Ok(Url::parse(url)?),
         _ => Err(anyhow!("Invalid url param!")),
     }
+}
+
+fn render_error_view(error: anyhow::Error) -> String {
+    r#"
+        const html = `
+            <h4 style="text-align: center;">An error occured. Please try again ...</h4>
+            <p style="text-align: center;color:red;margin-bottom:20px;">{msg}</p>
+        `;
+        document.querySelector("h1.h1").outerHTML = html;
+    "#
+    .replace("{msg}", &error.to_string())
+}
+
+fn render_tokens_view(tokens: auth::Tokens) -> String {
+    r#"
+        const html = `
+            <h4 style="text-align: center;">Access Token</h4>
+            <textarea readonly onclick="this.setSelectionRange(0, this.value.length)"
+                      cols="140" rows="12" style="resize:none;padding:4px;font-size:0.9em;"
+            >{access_token}</textarea>
+            <h4 style="text-align: center;">Refresh Token</h4>
+            <textarea readonly onclick="this.setSelectionRange(0, this.value.length)"
+                      cols="140" rows="12" style="resize:none;padding:4px;font-size:0.9em;"
+            >{refresh_token}</textarea>
+            <small style="margin-top:12px;margin-bottom:20px;text-align:center;color:seagreen;">
+            Valid for {expires_in}
+            </small>
+        `;
+
+        document.querySelector("h1.h1").outerHTML = html;
+    "#
+    .replace("{access_token}", tokens.access.secret())
+    .replace("{refresh_token}", tokens.refresh.secret())
+    .replace("{expires_in}", &format!("{}", tokens.expires_in))
 }
