@@ -66,6 +66,22 @@ sudo apt install libwebkit2gtk-4.0-dev libappindicator3-dev
 sudo dnf install gtk3-devel webkit2gtk3-devel libappindicator-gtk3-devel
 ```
 
+## Development
+
+```bash
+# Clone repository
+git clone https://github.com/adriankumpf/tesla_auth
+cd tesla_auth
+
+# Build (debug version)
+cargo build
+
+# Install (release version)
+cargo install --path . --locked
+```
+
+On Linux you'll need to install the [required dev dependencies](https://github.com/adriankumpf/tesla_auth/blob/main/.github/workflows/cd.yml#L47) first.
+
 ## License
 
 Apache-2.0/MIT
