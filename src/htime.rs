@@ -12,7 +12,7 @@ impl From<time::Duration> for Duration {
 }
 
 impl fmt::Display for Duration {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", pretty_print(&self.0))
     }
 }
