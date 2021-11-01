@@ -8,7 +8,7 @@ use reqwest::header::AUTHORIZATION;
 
 use oauth2::basic::BasicClient;
 use oauth2::reqwest::http_client;
-use oauth2::url::Url;
+use oauth2::url::{Host, Url};
 use oauth2::{
     AccessToken, AuthType, AuthUrl, AuthorizationCode, ClientId, CsrfToken, ExtraTokenFields,
     PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, RefreshToken, Scope, StandardTokenResponse,
@@ -20,6 +20,7 @@ use crate::htime;
 const CLIENT_ID: &str = "ownerapi";
 const AUTH_URL: &str = "https://auth.tesla.com/oauth2/v3/authorize";
 const TOKEN_URL: &str = "https://auth.tesla.com/oauth2/v3/token";
+const TOKEN_URL_CN: &str = "https://auth.tesla.cn/oauth2/v3/token";
 const REDIRECT_URL: &str = "https://auth.tesla.com/void/callback";
 
 const OA_CLIENT_ID: &str = "81527cff06843c8634fdc09e8ac0abefb46ac849f38fe1e431c2ef2106796384";
@@ -64,6 +65,7 @@ impl fmt::Display for Tokens {
 pub struct Client {
     auth_url: Url,
     oauth_client: BasicClient,
+    oauth_client_cn: BasicClient,
     pkce_verifier: PkceCodeVerifier,
     csrf_token: CsrfToken,
 }
@@ -75,6 +77,15 @@ impl Client {
             None,
             AuthUrl::new(AUTH_URL.to_string()).unwrap(),
             Some(TokenUrl::new(TOKEN_URL.to_string()).unwrap()),
+        )
+        .set_auth_type(AuthType::RequestBody)
+        .set_redirect_uri(RedirectUrl::new(REDIRECT_URL.to_string()).unwrap());
+
+        let oauth_client_cn = BasicClient::new(
+            ClientId::new(CLIENT_ID.to_string()),
+            None,
+            AuthUrl::new(AUTH_URL.to_string()).unwrap(),
+            Some(TokenUrl::new(TOKEN_URL_CN.to_string()).unwrap()),
         )
         .set_auth_type(AuthType::RequestBody)
         .set_redirect_uri(RedirectUrl::new(REDIRECT_URL.to_string()).unwrap());
@@ -91,6 +102,7 @@ impl Client {
 
         Client {
             oauth_client,
+            oauth_client_cn,
             auth_url,
             pkce_verifier,
             csrf_token,
@@ -105,14 +117,19 @@ impl Client {
         self,
         code: &str,
         state: &str,
+        issuer: &Url,
         exchange_sso_token: bool,
     ) -> anyhow::Result<Tokens> {
         if state != self.csrf_token.secret() {
             return Err(anyhow!("CSRF state does not match!"));
         }
 
-        let sso_token: SsoToken = self
-            .oauth_client
+        let client = match issuer.host() {
+            Some(Host::Domain("auth.tesla.cn")) => self.oauth_client_cn,
+            _global => self.oauth_client,
+        };
+
+        let sso_token: SsoToken = client
             .exchange_code(AuthorizationCode::new(code.to_string()))
             .set_pkce_verifier(self.pkce_verifier)
             .request(http_client)?
