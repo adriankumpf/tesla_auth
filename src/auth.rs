@@ -209,10 +209,11 @@ impl From<OwnerApiTokenResponse> for OwnerApiToken {
 }
 
 fn exchange_sso_access_token(access_token: &AccessToken) -> anyhow::Result<OwnerApiToken> {
-    let mut body = HashMap::new();
-    body.insert("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer");
-    body.insert("client_id", OA_CLIENT_ID);
-    body.insert("client_secret", OA_CLIENT_SECRET);
+    let body = HashMap::from([
+        ("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer"),
+        ("client_id", OA_CLIENT_ID),
+        ("client_secret", OA_CLIENT_SECRET),
+    ]);
 
     let req = reqwest::blocking::Client::new()
         .post(OA_TOKEN_URL)

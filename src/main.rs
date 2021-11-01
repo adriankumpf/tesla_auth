@@ -203,11 +203,11 @@ fn render_tokens_view(tokens: auth::Tokens) -> String {
         const html = `
             <h4 style="text-align: center;">Access Token</h4>
             <textarea readonly onclick="this.setSelectionRange(0, this.value.length)"
-                      cols="140" rows="12" style="resize:none;padding:4px;font-size:0.9em;"
+                      cols="100" rows="12" style="resize:none;padding:4px;font-size:0.9em;"
             >{access_token}</textarea>
             <h4 style="text-align: center;">Refresh Token</h4>
             <textarea readonly onclick="this.setSelectionRange(0, this.value.length)"
-                      cols="140" rows="12" style="resize:none;padding:4px;font-size:0.9em;"
+                      cols="100" rows="12" style="resize:none;padding:4px;font-size:0.9em;"
             >{refresh_token}</textarea>
             <small style="margin-top:12px;margin-bottom:20px;text-align:center;color:seagreen;">
             Valid for {expires_in}
