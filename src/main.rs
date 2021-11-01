@@ -155,7 +155,7 @@ fn url_handler(
                 let state = query.get("state").expect("No state parameter found");
                 let code = query.get("code").expect("No code parameter found");
                 let issuer = query.get("issuer").expect("No issuer parameter found");
-                let issuer_url = Url::parse(&issuer).expect("Issuer URL is not valid");
+                let issuer_url = Url::parse(issuer).expect("Issuer URL is not valid");
 
                 let event =
                     match client.retrieve_tokens(code, state, &issuer_url, exchange_sso_token) {
