@@ -13,14 +13,14 @@ license = "MIT OR Apache-2.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.51"
-argh = "0.1.6"
+anyhow = "1.0.52"
+argh = "0.1.7"
 log = "0.4.14"
 oauth2 = "4.1.0"
-reqwest = { version = "0.11.7", default-features = false, features = ["json", "rustls-tls"] }
-serde = { version = "1.0.130", default-features = false, features = ["derive"] }
-serde_json = "1.0.72"
-simple_logger = { version = "1.15.0", default-features = false, features = ["stderr"] }
+reqwest = { version = "0.11.8", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1.0.132", default-features = false, features = ["derive"] }
+serde_json = "1.0.73"
+simple_logger = { version = "1.16.0", default-features = false, features = ["stderr"] }
 static_vcruntime = "1.5.1"
 wry = { version = "0.12.2", default-features = false, features = [] }
 
