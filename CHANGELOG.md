@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.4.1] - 2022-01-01
+
+- Close window if login was canceled
+
 ## [0.4.0] - 2021-11-01
 
 - Add support for Chinese auth servers
@@ -25,6 +29,7 @@
 
 ## [0.1.0] - 2021-09-17
 
+[0.4.0]: https://github.com/adriankumpf/tesla_auth/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/adriankumpf/tesla_auth/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/adriankumpf/tesla_auth/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/adriankumpf/tesla_auth/compare/v0.1.1...v0.2.0
