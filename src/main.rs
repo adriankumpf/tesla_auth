@@ -1,5 +1,6 @@
 extern crate static_vcruntime;
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::mpsc::channel;
 use std::thread;
@@ -36,6 +37,7 @@ window.addEventListener('DOMContentLoaded', (event) => {
 enum CustomEvent {
     Tokens(auth::Tokens),
     Failure(anyhow::Error),
+    LoginCanceled,
 }
 
 #[derive(argh::FromArgs, Debug)]
@@ -101,6 +103,11 @@ fn main() -> anyhow::Result<()> {
                 webview.evaluate_script(&render_tokens_view(t)).unwrap();
             }
 
+            Event::UserEvent(CustomEvent::LoginCanceled) => {
+                log::warn!("Login canceled");
+                *control_flow = ControlFlow::Exit;
+            }
+
             _ => (),
         }
     });
@@ -110,7 +117,7 @@ fn init_logger(debug: bool) -> anyhow::Result<()> {
     let level_filter = if debug {
         LevelFilter::Debug
     } else {
-        LevelFilter::Error
+        LevelFilter::Warn
     };
 
     SimpleLogger::new()
@@ -151,6 +158,10 @@ fn url_handler(
         while let Ok(url) = rx.recv() {
             if auth::is_redirect_url(&url) {
                 let query: HashMap<_, _> = url.query_pairs().collect();
+
+                if let Some(Cow::Borrowed("login_cancelled")) = query.get("error") {
+                    return event_proxy.send_event(CustomEvent::LoginCanceled).unwrap();
+                }
 
                 let state = query.get("state").expect("No state parameter found");
                 let code = query.get("code").expect("No code parameter found");
