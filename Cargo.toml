@@ -17,10 +17,10 @@ anyhow = "1.0.52"
 argh = "0.1.7"
 log = "0.4.14"
 oauth2 = "4.1.0"
-reqwest = { version = "0.11.8", default-features = false, features = ["json", "rustls-tls"] }
-serde = { version = "1.0.132", default-features = false, features = ["derive"] }
-serde_json = "1.0.73"
-simple_logger = { version = "1.16.0", default-features = false, features = ["stderr"] }
+reqwest = { version = "0.11.9", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1.0.134", default-features = false, features = ["derive"] }
+serde_json = "1.0.75"
+simple_logger = { version = "2.1.0", default-features = false, features = ["stderr"] }
 static_vcruntime = "1.5.1"
 wry = { version = "0.12.2", default-features = false, features = [] }
 
