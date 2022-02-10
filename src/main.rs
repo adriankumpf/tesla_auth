@@ -151,7 +151,7 @@ fn url_handler(
     client: auth::Client,
     event_proxy: EventLoopProxy<CustomEvent>,
     exchange_sso_token: bool,
-) -> impl Fn(&Window, String) -> () {
+) -> impl Fn(&Window, String) {
     let (tx, rx) = channel();
 
     thread::spawn(move || {
