@@ -3,7 +3,6 @@
 ## [0.4.2] - 2022-02-10
 
 - Upgrade `wry` to 0.13
-- Allow to open devtools in release build
 
 ## [0.4.1] - 2022-01-01
 
