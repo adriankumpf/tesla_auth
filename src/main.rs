@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use std::sync::mpsc::channel;
 use std::thread;
 
-use anyhow::anyhow;
 use log::LevelFilter;
 use oauth2::url::Url;
 use simple_logger::SimpleLogger;
@@ -16,7 +15,7 @@ use wry::application::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 use wry::application::keyboard::KeyCode;
 use wry::application::menu::{MenuBar, MenuId, MenuItem, MenuItemAttributes, MenuType};
 use wry::application::window::{Window, WindowBuilder};
-use wry::webview::{RpcRequest, RpcResponse, WebViewBuilder};
+use wry::webview::WebViewBuilder;
 
 mod auth;
 mod htime;
@@ -29,7 +28,7 @@ window.addEventListener('DOMContentLoaded', (event) => {
        document.querySelector("h1.h1").innerText = "Generating Tokens …";
     }
 
-    rpc.call('url', url);
+    window.ipc.postMessage(`url:${url}`)
 });
 "#;
 
@@ -73,7 +72,8 @@ fn main() -> anyhow::Result<()> {
     let webview = WebViewBuilder::new(window)?
         .with_initialization_script(INITIALIZATION_SCRIPT)
         .with_url(auth_url.as_str())?
-        .with_rpc_handler(url_handler(auth_client, event_proxy, args.owner_api_token))
+        .with_ipc_handler(url_handler(auth_client, event_proxy, args.owner_api_token))
+        .with_dev_tool(true)
         .build()?;
 
     log::debug!("Opening {} ...", auth_url);
@@ -151,7 +151,7 @@ fn url_handler(
     client: auth::Client,
     event_proxy: EventLoopProxy<CustomEvent>,
     exchange_sso_token: bool,
-) -> impl Fn(&Window, RpcRequest) -> Option<RpcResponse> {
+) -> impl Fn(&Window, String) -> () {
     let (tx, rx) = channel();
 
     thread::spawn(move || {
@@ -179,22 +179,15 @@ fn url_handler(
         }
     });
 
-    move |_window: &Window, req: RpcRequest| {
-        if let ("url", Some(params)) = (req.method.as_str(), req.params) {
-            if let Ok(url) = parse_url(params) {
+    move |_window: &Window, req: String| match req.as_str() {
+        _ if req.starts_with("url") => {
+            let url = req.replace("url:", "");
+            if let Ok(url) = Url::parse(&url) {
                 log::debug!("URL changed: {}", url);
                 tx.send(url).unwrap();
             }
         }
-
-        None
-    }
-}
-
-fn parse_url(params: wry::Value) -> anyhow::Result<Url> {
-    match &serde_json::from_value::<Vec<String>>(params)?[..] {
-        [url] => Ok(Url::parse(url)?),
-        _ => Err(anyhow!("Invalid url param!")),
+        _ => {}
     }
 }
 
