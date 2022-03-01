@@ -1170,16 +1170,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "915b1b472bc21c53464d6c8461c9d3af805ba1ef837e1cac254428f4a77177b1"
 dependencies = [
  "malloc_buf",
- "objc_exception",
-]
-
-[[package]]
-name = "objc_exception"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad970fb455818ad6cba4c122ad012fae53ae8b4795f86378bce65e4f6bab2ca4"
-dependencies = [
- "cc",
 ]
 
 [[package]]
@@ -1711,16 +1701,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sys-info"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b3a0d0aba8bf96a0e1ddfdc352fc53b3df7f39318c71854910c3c4b024ae52c"
-dependencies = [
- "cc",
- "libc",
-]
-
-[[package]]
 name = "system-deps"
 version = "3.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2184,9 +2164,9 @@ dependencies = [
 
 [[package]]
 name = "webview2-com"
-version = "0.11.0"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1975ce3573344c099935fe3903f1708dac69efe8539f1efee3ae54d8f9315fbb"
+checksum = "bb8e90ac2d9ce39cdb70017aaec641be09fbdd702b7b332b9896d053eb469524"
 dependencies = [
  "webview2-com-macros",
  "webview2-com-sys",
@@ -2207,9 +2187,9 @@ dependencies = [
 
 [[package]]
 name = "webview2-com-sys"
-version = "0.11.0"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a746838a94b7391f707209a246e3436d81d1e71832126a65a897d3ee5511040"
+checksum = "92160310b3322397e4ff8a8285a7429d73a07a68fda44ee80879605b93e53f76"
 dependencies = [
  "regex",
  "serde",
@@ -2339,9 +2319,9 @@ dependencies = [
 
 [[package]]
 name = "wry"
-version = "0.13.1"
+version = "0.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "194b2750d8fe10fef189af5e2ca09e56cb8c5458a365d2b32842b024351f58c9"
+checksum = "9514586e5c964d30cc7123c9aea9880ff7b3cb1c43f6a1dc8703941eb72ac89f"
 dependencies = [
  "cocoa",
  "core-graphics",
@@ -2357,7 +2337,6 @@ dependencies = [
  "once_cell",
  "serde",
  "serde_json",
- "sys-info",
  "tao",
  "thiserror",
  "url",
