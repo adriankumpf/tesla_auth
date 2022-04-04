@@ -73,7 +73,7 @@ fn main() -> anyhow::Result<()> {
         .with_initialization_script(INITIALIZATION_SCRIPT)
         .with_url(auth_url.as_str())?
         .with_ipc_handler(url_handler(auth_client, event_proxy, args.owner_api_token))
-        .with_dev_tool(true)
+        .with_devtools(true)
         .build()?;
 
     log::debug!("Opening {} ...", auth_url);
