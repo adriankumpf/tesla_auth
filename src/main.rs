@@ -42,10 +42,6 @@ enum CustomEvent {
 #[derive(argh::FromArgs, Debug)]
 /// Tesla API tokens generator
 struct Args {
-    /// exchange SSO access token for long-lived Owner API token
-    #[argh(switch, short = 'o')]
-    owner_api_token: bool,
-
     /// print debug output
     #[argh(switch, short = 'd')]
     debug: bool,
@@ -72,7 +68,7 @@ fn main() -> anyhow::Result<()> {
     let webview = WebViewBuilder::new(window)?
         .with_initialization_script(INITIALIZATION_SCRIPT)
         .with_url(auth_url.as_str())?
-        .with_ipc_handler(url_handler(auth_client, event_proxy, args.owner_api_token))
+        .with_ipc_handler(url_handler(auth_client, event_proxy))
         .with_devtools(true)
         .build()?;
 
@@ -150,7 +146,6 @@ fn build_menu() -> (MenuBar, MenuId) {
 fn url_handler(
     client: auth::Client,
     event_proxy: EventLoopProxy<CustomEvent>,
-    exchange_sso_token: bool,
 ) -> impl Fn(&Window, String) {
     let (tx, rx) = channel();
 
@@ -168,11 +163,10 @@ fn url_handler(
                 let issuer = query.get("issuer").expect("No issuer parameter found");
                 let issuer_url = Url::parse(issuer).expect("Issuer URL is not valid");
 
-                let event =
-                    match client.retrieve_tokens(code, state, &issuer_url, exchange_sso_token) {
-                        Ok(tokens) => CustomEvent::Tokens(tokens),
-                        Err(error) => CustomEvent::Failure(error),
-                    };
+                let event = match client.retrieve_tokens(code, state, &issuer_url) {
+                    Ok(tokens) => CustomEvent::Tokens(tokens),
+                    Err(error) => CustomEvent::Failure(error),
+                };
 
                 return event_proxy.send_event(event).unwrap();
             }

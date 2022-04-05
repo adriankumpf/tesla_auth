@@ -24,8 +24,6 @@ Usage: tesla_auth [-o] [-d]
 Tesla API tokens generator
 
 Options:
-  -o, --owner-api-token
-                    exchange SSO access token for long-lived Owner API token
   -d, --debug       print debug output
   --help            display usage information
 ```
