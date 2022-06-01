@@ -22,7 +22,7 @@ serde = { version = "1.0.136", default-features = false, features = ["derive"] }
 serde_json = "1.0.80"
 simple_logger = { version = "2.1.0", default-features = false, features = ["stderr"] }
 static_vcruntime = "1.5.1"
-wry = { version = "0.15.1", default-features = false, features = [] }
+wry = { version = "0.18.1", default-features = false, features = [] }
 
 [profile.release]
 opt-level = "z"  # Optimize for size.
