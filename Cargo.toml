@@ -19,7 +19,7 @@ log = "0.4.16"
 oauth2 = "4.2.0"
 reqwest = { version = "0.11.10", default-features = false, features = ["json", "rustls-tls"] }
 serde = { version = "1.0.136", default-features = false, features = ["derive"] }
-serde_json = "1.0.80"
+serde_json = "1.0.81"
 simple_logger = { version = "2.1.0", default-features = false, features = ["stderr"] }
 static_vcruntime = "1.5.1"
 wry = { version = "0.15.1", default-features = false, features = [] }
