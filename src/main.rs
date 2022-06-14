@@ -1,5 +1,3 @@
-extern crate static_vcruntime;
-
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::mpsc::channel;
