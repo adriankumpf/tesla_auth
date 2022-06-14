@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.5.1] - 2022-06-14
+
+- Update dependencies
+
 ## [0.5.0] - 2022-04-09
 
 - Remove ability to generate Owner API tokens as Tesla does not support them anymore
@@ -38,6 +42,7 @@
 
 ## [0.1.0] - 2021-09-17
 
+[0.5.1]: https://github.com/adriankumpf/tesla_auth/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/adriankumpf/tesla_auth/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/adriankumpf/tesla_auth/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/adriankumpf/tesla_auth/compare/v0.4.0...v0.4.1
