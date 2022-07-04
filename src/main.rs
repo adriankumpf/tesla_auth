@@ -70,7 +70,7 @@ fn main() -> anyhow::Result<()> {
         .with_devtools(true)
         .build()?;
 
-    log::debug!("Opening {} ...", auth_url);
+    log::debug!("Opening {auth_url} ...");
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
@@ -87,14 +87,14 @@ fn main() -> anyhow::Result<()> {
                 ..
             } if menu_id == quit_id => *control_flow = ControlFlow::Exit,
 
-            Event::UserEvent(CustomEvent::Failure(e)) => {
-                log::error!("{}", e);
-                webview.evaluate_script(&render_error_view(e)).unwrap();
+            Event::UserEvent(CustomEvent::Failure(error)) => {
+                log::error!("{error}");
+                webview.evaluate_script(&render_error_view(error)).unwrap();
             }
 
-            Event::UserEvent(CustomEvent::Tokens(t)) => {
-                println!("{}", t);
-                webview.evaluate_script(&render_tokens_view(t)).unwrap();
+            Event::UserEvent(CustomEvent::Tokens(token)) => {
+                println!("{token}");
+                webview.evaluate_script(&render_tokens_view(token)).unwrap();
             }
 
             Event::UserEvent(CustomEvent::LoginCanceled) => {
@@ -175,7 +175,7 @@ fn url_handler(
         _ if req.starts_with("url") => {
             let url = req.replace("url:", "");
             if let Ok(url) = Url::parse(&url) {
-                log::debug!("URL changed: {}", url);
+                log::debug!("URL changed: {url}");
                 tx.send(url).unwrap();
             }
         }
