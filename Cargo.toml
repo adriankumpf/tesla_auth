@@ -16,12 +16,12 @@ license = "MIT OR Apache-2.0"
 anyhow = "1.0.58"
 argh = "0.1.8"
 log = "0.4.17"
-oauth2 = "4.2.0"
+oauth2 = "4.2.3"
 reqwest = { version = "0.11.11", default-features = false, features = ["json", "rustls-tls"] }
-serde = { version = "1.0.138", default-features = false, features = ["derive"] }
+serde = { version = "1.0.139", default-features = false, features = ["derive"] }
 serde_json = "1.0.82"
-simple_logger = { version = "2.1.0", default-features = false, features = ["stderr"] }
-wry = { version = "0.19.0", default-features = false, features = [] }
+simple_logger = { version = "2.2.0", default-features = false, features = ["stderr"] }
+wry = { version = "0.20.0", default-features = false, features = [] }
 
 [build-dependencies]
 static_vcruntime = "2.0.0"
