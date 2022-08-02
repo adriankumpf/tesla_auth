@@ -60,11 +60,13 @@ fn main() -> anyhow::Result<()> {
 
     let window = WindowBuilder::new()
         .with_title("Tesla Auth")
+        .with_resizable(true)
         .with_menu(menu)
         .build(&event_loop)?;
 
     let webview = WebViewBuilder::new(window)?
         .with_initialization_script(INITIALIZATION_SCRIPT)
+        .with_clipboard(true)
         .with_url(auth_url.as_str())?
         .with_ipc_handler(url_handler(auth_client, event_proxy))
         .with_devtools(true)
