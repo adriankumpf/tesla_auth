@@ -3,27 +3,10 @@ name: CI
 on:
   pull_request:
   push:
-    branches: main
+    branches: 
+      - main
 
 jobs:
-  check:
-    name: Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
-      - run: |
-          sudo apt-get update
-          sudo apt-get install -y -qq webkit2gtk-4.0 libgtksourceview-3.0-dev libappindicator3-dev
-      - uses: Swatinem/rust-cache@v1
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-
   test:
     name: Test Suite
     runs-on: ubuntu-latest
