@@ -19,7 +19,7 @@ Multi-factor authentication (MFA) and Captcha are supported.
 
 ```plain
 ❯ tesla_auth --help
-Usage: tesla_auth [-o] [-d]
+Usage: tesla_auth [-d]
 
 Tesla API tokens generator
 
