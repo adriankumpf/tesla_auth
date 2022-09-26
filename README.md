@@ -59,6 +59,11 @@ sudo pacman -S webkit2gtk libappindicator-gtk3
 ```bash
 sudo apt install libwebkit2gtk-4.0-dev libappindicator3-dev
 ```
+Please note: On Debian 11 (Bullseye) use this instead, as `libappindicator3-dev` are deprecated
+
+```bash
+sudo apt-get install -y webkit2gtk-4.0 libgtksourceview-3.0-dev libayatana-appindicator3-1 build-essential
+```
 
 #### Fedora
 
