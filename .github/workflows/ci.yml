@@ -20,7 +20,7 @@ jobs:
       - run: |
           sudo apt-get update
           sudo apt-get install -y -qq webkit2gtk-4.0 libgtksourceview-3.0-dev libappindicator3-dev
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
       - uses: actions-rs/cargo@v1
         with:
           command: test
@@ -55,7 +55,7 @@ jobs:
       - run: |
           sudo apt-get update
           sudo apt-get install -y -qq webkit2gtk-4.0 libgtksourceview-3.0-dev libappindicator3-dev
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
