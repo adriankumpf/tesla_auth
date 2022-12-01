@@ -33,7 +33,7 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
           override: true
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
       - name: Installing needed Windows dependencies
         if: matrix.os == 'windows-latest'
         shell: pwsh
