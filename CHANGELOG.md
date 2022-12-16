@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.5.4] - 2022-12-16
+
+- Update dependencies
+
 ## [0.5.3] - 2022-09-11
 
 - Upgrade `wry` to 0.21.1
@@ -51,6 +55,7 @@
 
 ## [0.1.0] - 2021-09-17
 
+[0.5.4]: https://github.com/adriankumpf/tesla_auth/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/adriankumpf/tesla_auth/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/adriankumpf/tesla_auth/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/adriankumpf/tesla_auth/compare/v0.5.0...v0.5.1
