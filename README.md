@@ -1,7 +1,7 @@
 # Tesla Auth
 
 [![CI](https://github.com/adriankumpf/tesla_auth/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/adriankumpf/tesla_auth/actions/workflows/ci.yml)
-[![CD](https://github.com/adriankumpf/tesla_auth/actions/workflows/cd.yml/badge.svg?branch=main)](https://github.com/adriankumpf/tesla_auth/actions/workflows/cd.yml)
+[![CD](https://github.com/adriankumpf/tesla_auth/actions/workflows/cd.yml/badge.svg)](https://github.com/adriankumpf/tesla_auth/actions/workflows/cd.yml)
 
 Securely generate API tokens for third-party access to your Tesla.
 
