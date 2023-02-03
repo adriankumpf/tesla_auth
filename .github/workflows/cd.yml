@@ -54,8 +54,6 @@ jobs:
           cd target/${{ matrix.target }}/release
 
           BINARY_NAME=tesla_auth${{ matrix.binary_postfix }}
-          strip $BINARY_NAME
-
           RELEASE_NAME=tesla-auth-${{ matrix.artifact_prefix }}
           tar czvf $RELEASE_NAME.tar.gz $BINARY_NAME
 

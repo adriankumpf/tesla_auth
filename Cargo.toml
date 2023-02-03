@@ -27,6 +27,7 @@ wry = { version = "0.23.4", default-features = false, features = [] }
 static_vcruntime = "2.0.0"
 
 [profile.release]
+strip = "debuginfo"
 opt-level = "z"  # Optimize for size.
 lto = true
 codegen-units = 1
