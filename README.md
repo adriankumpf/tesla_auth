@@ -38,11 +38,11 @@ Options:
 
 ### macOS
 
-WebKit is native on macOS so **no additional dependencies** are required.
+WebKit is native on macOS so no additional dependencies are required.
 
 ### Windows
 
-WebView2 is powered by Microsoft Edge (Chromium). At the moment it **requires a preview version of Edge** which can be downloaded here: [Microsoft Edge Insider Channels](https://www.microsoftedgeinsider.com/en-us/download)
+WebView2 provided by Microsoft Edge Chromium is used. So Windows 7, 8, 10 and 11 are supported.
 
 ### Linux
 
@@ -51,25 +51,19 @@ WebView2 is powered by Microsoft Edge (Chromium). At the moment it **requires a 
 #### Arch Linux / Manjaro:
 
 ```bash
-sudo pacman -S webkit2gtk libappindicator-gtk3
+sudo pacman -S webkit2gtk-4.1
 ```
 
 #### Debian / Ubuntu:
 
 ```bash
-sudo apt install webkit2gtk-4.1 libayatana-appindicator3-dev
-```
-
-Please note: On Debian 11 (Bullseye) use this instead, as `libappindicator3-dev` are deprecated
-
-```bash
-sudo apt-get install -y webkit2gtk-4.0 libgtksourceview-3.0-dev libayatana-appindicator3-1 build-essential
+sudo apt install libwebkit2gtk-4.1-dev
 ```
 
 #### Fedora
 
 ```bash
-sudo dnf install gtk3-devel webkit2gtk3-devel libappindicator-gtk3-devel
+sudo dnf install gtk3-devel webkit2gtk4.1-devel
 ```
 
 ## Development

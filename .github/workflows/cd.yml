@@ -43,7 +43,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.1 libgtksourceview-3.0-dev libayatana-appindicator3-dev
+          sudo apt-get install -y webkit2gtk-4.1
       - name: Checking out sources
         uses: actions/checkout@v3
       - name: Running cargo build

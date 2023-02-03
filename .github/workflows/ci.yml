@@ -15,7 +15,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: |
           sudo apt-get update
-          sudo apt-get install -y -qq webkit2gtk-4.1 libgtksourceview-3.0-dev libayatana-appindicator3-dev
+          sudo apt-get install -y -qq webkit2gtk-4.1
       - uses: Swatinem/rust-cache@v2
       - run: cargo test
 
@@ -39,6 +39,6 @@ jobs:
           components: clippy
       - run: |
           sudo apt-get update
-          sudo apt-get install -y -qq webkit2gtk-4.1 libgtksourceview-3.0-dev libayatana-appindicator3-dev
+          sudo apt-get install -y -qq webkit2gtk-4.1
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy -- -D warnings
