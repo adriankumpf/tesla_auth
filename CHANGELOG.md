@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0] - 2023-02-03
+
+- Upgrade `wry` to 0.25.0
+  - On Linux this requires webkit2gtk-4.1 as dependency from now on (see [README](https://github.com/adriankumpf/tesla_auth#platform-specific-dependencies))
+- Remove unnecessary indicator package
+- Update GitHub action workflows
+
 ## [0.5.4] - 2022-12-16
 
 - Update dependencies
@@ -55,6 +62,7 @@
 
 ## [0.1.0] - 2021-09-17
 
+[0.6.0]: https://github.com/adriankumpf/tesla_auth/compare/v0.5.4...v0.5.0
 [0.5.4]: https://github.com/adriankumpf/tesla_auth/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/adriankumpf/tesla_auth/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/adriankumpf/tesla_auth/compare/v0.5.1...v0.5.2
