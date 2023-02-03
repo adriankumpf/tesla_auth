@@ -28,11 +28,10 @@ jobs:
             binary_postfix: ".exe"
 
     steps:
-      - name: Installing Rust toolchain
-        uses: actions-rs/toolchain@v1
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
-          override: true
       - uses: Swatinem/rust-cache@v2
       - name: Installing needed Windows dependencies
         if: matrix.os == 'windows-latest'
@@ -48,12 +47,7 @@ jobs:
       - name: Checking out sources
         uses: actions/checkout@v3
       - name: Running cargo build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          toolchain: ${{ matrix.rust }}
-          args: --release --target ${{ matrix.target }}
-
+        run: cargo build --release --target ${{ matrix.target }}
       - name: Packaging final binary
         shell: bash
         run: |
