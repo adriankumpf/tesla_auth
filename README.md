@@ -80,8 +80,6 @@ cargo build
 cargo install --path . --locked
 ```
 
-On Linux you'll need to install the [required dev dependencies](https://github.com/adriankumpf/tesla_auth/blob/main/.github/workflows/cd.yml#L47) first.
-
 ## License
 
 Apache-2.0/MIT
