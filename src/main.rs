@@ -188,7 +188,7 @@ fn url_handler(
 fn render_error_view(error: anyhow::Error) -> String {
     r#"
         const html = `
-            <h4 style="text-align: center;">An error occured. Please try again ...</h4>
+            <h4 style="text-align: center;">An error occurred. Please try again ...</h4>
             <p style="text-align: center;color:red;margin-bottom:20px;">{msg}</p>
         `;
         document.querySelector("h1.h1").outerHTML = html;
