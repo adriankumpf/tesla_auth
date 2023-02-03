@@ -57,8 +57,9 @@ sudo pacman -S webkit2gtk libappindicator-gtk3
 #### Debian / Ubuntu:
 
 ```bash
-sudo apt install libwebkit2gtk-4.0-dev libappindicator3-dev
+sudo apt install webkit2gtk-4.1 libayatana-appindicator3-dev
 ```
+
 Please note: On Debian 11 (Bullseye) use this instead, as `libappindicator3-dev` are deprecated
 
 ```bash
