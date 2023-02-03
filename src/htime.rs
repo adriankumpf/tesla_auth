@@ -33,9 +33,9 @@ fn pretty_print(d: &time::Duration) -> String {
         let units = d / secs;
 
         out.push(if units == 1 {
-            format!("{} {}", units, suffix)
+            format!("{units} {suffix}")
         } else {
-            format!("{} {}s", units, suffix)
+            format!("{units} {suffix}s")
         });
 
         d = d
