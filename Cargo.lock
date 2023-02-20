@@ -2288,7 +2288,7 @@ dependencies = [
 
 [[package]]
 name = "tesla_auth"
-version = "0.6.0"
+version = "0.6.2"
 dependencies = [
  "anyhow",
  "argh",
