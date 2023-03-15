@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.6.3] - 2023-03-15
+
+- Allow opening the dev tools in release mode
+
 ## [0.6.2] - 2023-02-20
 
 - Sync `Cargo.lock` file
@@ -70,6 +74,7 @@
 
 ## [0.1.0] - 2021-09-17
 
+[0.6.3]: https://github.com/adriankumpf/tesla_auth/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/adriankumpf/tesla_auth/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/adriankumpf/tesla_auth/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/adriankumpf/tesla_auth/compare/v0.5.4...v0.5.0
