@@ -43,6 +43,10 @@ struct Args {
     /// print debug output
     #[argh(switch, short = 'd')]
     debug: bool,
+
+    /// do not clear browsing data at startup to stay logged in
+    #[argh(switch, short = 'k')]
+    keep_browsing_data: bool,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -71,6 +75,10 @@ fn main() -> anyhow::Result<()> {
         .with_ipc_handler(url_handler(auth_client, event_proxy))
         .with_devtools(true)
         .build()?;
+
+    if !args.keep_browsing_data {
+        webview.clear_all_browsing_data()?;
+    }
 
     log::debug!("Opening {auth_url} ...");
 
