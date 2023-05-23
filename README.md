@@ -25,8 +25,8 @@ Tesla API tokens generator
 
 Options:
   -d, --debug       print debug output
-  -k, --keep-browsing-data
-                    do not clear browsing data at startup to stay logged in
+  -c, --clear-browsing-data
+                    clear browsing data at startup
   --help            display usage information
 ```
 

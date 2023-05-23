@@ -44,9 +44,9 @@ struct Args {
     #[argh(switch, short = 'd')]
     debug: bool,
 
-    /// do not clear browsing data at startup to stay logged in
-    #[argh(switch, short = 'k')]
-    keep_browsing_data: bool,
+    /// clear browsing data at startup
+    #[argh(switch, short = 'c')]
+    clear_browsing_data: bool,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -76,7 +76,7 @@ fn main() -> anyhow::Result<()> {
         .with_devtools(true)
         .build()?;
 
-    if !args.keep_browsing_data {
+    if args.clear_browsing_data {
         webview.clear_all_browsing_data()?;
     }
 
