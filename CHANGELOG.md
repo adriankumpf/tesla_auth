@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.0] - 2023-05-23
+
+- Do not clear browsing data at startup by default as it can cause issues on macOS. See `tesla_auth --help`
+
 ## [0.7.0] - 2023-05-05
 
 - Clear browsing data at startup (can be disabled with the `-k` flag. See `tesla_auth --help`)
@@ -78,6 +82,7 @@
 
 ## [0.1.0] - 2021-09-17
 
+[0.8.0]: https://github.com/adriankumpf/tesla_auth/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/adriankumpf/tesla_auth/compare/v0.6.3...v0.7.0
 [0.6.3]: https://github.com/adriankumpf/tesla_auth/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/adriankumpf/tesla_auth/compare/v0.6.1...v0.6.2
