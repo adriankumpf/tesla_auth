@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::sync::mpsc::channel;
+use std::sync::mpsc::{channel, Sender};
 use std::thread;
 
 use log::LevelFilter;
@@ -10,7 +10,7 @@ use simple_logger::SimpleLogger;
 use muda::{Menu, PredefinedMenuItem, Submenu};
 use wry::application::event::{Event, WindowEvent};
 use wry::application::event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy};
-use wry::application::window::{Window, WindowBuilder};
+use wry::application::window::WindowBuilder;
 use wry::webview::WebViewBuilder;
 
 mod auth;
@@ -29,7 +29,8 @@ window.addEventListener('DOMContentLoaded', (event) => {
 "#;
 
 #[derive(Debug)]
-enum CustomEvent {
+enum UserEvent {
+    Navigation(Url),
     Tokens(auth::Tokens),
     Failure(anyhow::Error),
     LoginCanceled,
@@ -52,7 +53,7 @@ fn main() -> anyhow::Result<()> {
 
     init_logger(args.debug)?;
 
-    let event_loop = EventLoopBuilder::<CustomEvent>::with_user_event().build();
+    let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
     let event_proxy = event_loop.create_proxy();
 
     let auth_client = auth::Client::new();
@@ -103,7 +104,7 @@ fn main() -> anyhow::Result<()> {
         &edit_menu,
         #[cfg(target_os = "macos")]
         &view_menu,
-        #[cfg(not(linux))]
+        #[cfg(not(target_os = "linux"))]
         &window_menu,
     ])?;
 
@@ -114,17 +115,24 @@ fn main() -> anyhow::Result<()> {
     #[cfg(target_os = "macos")]
     menu_bar.init_for_nsapp();
 
+    let proxy = event_proxy.clone();
+
     let webview = WebViewBuilder::new(window)?
         .with_initialization_script(INITIALIZATION_SCRIPT)
+        .with_navigation_handler(move |uri: String| {
+            let uri = Url::parse(&uri).expect("not a valid URL");
+            proxy.send_event(UserEvent::Navigation(uri)).is_ok()
+        })
         .with_clipboard(true)
         .with_url(auth_url.as_str())?
-        .with_ipc_handler(url_handler(auth_client, event_proxy))
         .with_devtools(true)
         .build()?;
 
     if args.clear_browsing_data {
         webview.clear_all_browsing_data()?;
     }
+
+    let tx = url_handler(auth_client, event_proxy);
 
     log::debug!("Opening {auth_url} ...");
 
@@ -137,17 +145,22 @@ fn main() -> anyhow::Result<()> {
                 ..
             } => *control_flow = ControlFlow::Exit,
 
-            Event::UserEvent(CustomEvent::Failure(error)) => {
+            Event::UserEvent(UserEvent::Navigation(url)) => {
+                log::debug!("URL changed: {url}");
+                tx.send(url).unwrap();
+            }
+
+            Event::UserEvent(UserEvent::Failure(error)) => {
                 log::error!("{error}");
                 webview.evaluate_script(&render_error_view(error)).unwrap();
             }
 
-            Event::UserEvent(CustomEvent::Tokens(token)) => {
+            Event::UserEvent(UserEvent::Tokens(token)) => {
                 println!("{token}");
                 webview.evaluate_script(&render_tokens_view(token)).unwrap();
             }
 
-            Event::UserEvent(CustomEvent::LoginCanceled) => {
+            Event::UserEvent(UserEvent::LoginCanceled) => {
                 log::warn!("Login canceled");
                 *control_flow = ControlFlow::Exit;
             }
@@ -173,10 +186,7 @@ fn init_logger(debug: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn url_handler(
-    client: auth::Client,
-    event_proxy: EventLoopProxy<CustomEvent>,
-) -> impl Fn(&Window, String) {
+fn url_handler(client: auth::Client, event_proxy: EventLoopProxy<UserEvent>) -> Sender<Url> {
     let (tx, rx) = channel();
 
     thread::spawn(move || {
@@ -185,7 +195,7 @@ fn url_handler(
                 let query: HashMap<_, _> = url.query_pairs().collect();
 
                 if let Some(Cow::Borrowed("login_cancelled")) = query.get("error") {
-                    return event_proxy.send_event(CustomEvent::LoginCanceled).unwrap();
+                    return event_proxy.send_event(UserEvent::LoginCanceled).unwrap();
                 }
 
                 let state = query.get("state").expect("No state parameter found");
@@ -194,8 +204,8 @@ fn url_handler(
                 let issuer_url = Url::parse(issuer).expect("Issuer URL is not valid");
 
                 let event = match client.retrieve_tokens(code, state, &issuer_url) {
-                    Ok(tokens) => CustomEvent::Tokens(tokens),
-                    Err(error) => CustomEvent::Failure(error),
+                    Ok(tokens) => UserEvent::Tokens(tokens),
+                    Err(error) => UserEvent::Failure(error),
                 };
 
                 return event_proxy.send_event(event).unwrap();
@@ -203,16 +213,7 @@ fn url_handler(
         }
     });
 
-    move |_window: &Window, req: String| match req.as_str() {
-        _ if req.starts_with("url") => {
-            let url = req.replace("url:", "");
-            if let Ok(url) = Url::parse(&url) {
-                log::debug!("URL changed: {url}");
-                tx.send(url).unwrap();
-            }
-        }
-        _ => {}
-    }
+    tx
 }
 
 fn render_error_view(error: anyhow::Error) -> String {
