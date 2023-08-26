@@ -11,6 +11,7 @@ jobs:
     name: Publishing for ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
         rust: [stable]
@@ -44,7 +45,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.1
+          sudo apt-get install -y webkit2gtk-4.1 libxdo-dev
       - name: Checking out sources
         uses: actions/checkout@v3
       - name: Running cargo build
