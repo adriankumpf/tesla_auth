@@ -13,6 +13,11 @@ use wry::application::event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy
 use wry::application::window::WindowBuilder;
 use wry::webview::WebViewBuilder;
 
+#[cfg(target_os = "linux")]
+use wry::application::platform::unix::WindowExtUnix;
+#[cfg(target_os = "windows")]
+use wry::application::platform::windows::{EventLoopBuilderExtWindows, WindowExtWindows};
+
 mod auth;
 mod htime;
 
@@ -109,9 +114,9 @@ fn main() -> anyhow::Result<()> {
     ])?;
 
     #[cfg(target_os = "windows")]
-    menu_bar.init_for_hwnd(window.hwnd() as _);
+    menu_bar.init_for_hwnd(window.hwnd() as _)?;
     #[cfg(target_os = "linux")]
-    menu_bar.init_for_gtk_window(window.gtk_window(), window.default_vbox());
+    menu_bar.init_for_gtk_window(window.gtk_window(), window.default_vbox())?;
     #[cfg(target_os = "macos")]
     menu_bar.init_for_nsapp();
 
