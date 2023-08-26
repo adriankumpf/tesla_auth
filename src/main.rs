@@ -28,8 +28,6 @@ window.addEventListener('DOMContentLoaded', (event) => {
     if (url.startsWith("https://auth.tesla.com/void/callback")) {
        document.querySelector("h1.h1").innerText = "Generating Tokens …";
     }
-
-    window.ipc.postMessage(`url:${url}`)
 });
 "#;
 
