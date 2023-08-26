@@ -1,6 +1,7 @@
 name: CD
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - "v*.*.*"
@@ -64,6 +65,7 @@ jobs:
           fi
       - name: Releasing assets
         uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
             target/${{ matrix.target }}/release/tesla-auth-${{ matrix.artifact_prefix }}.tar.gz
