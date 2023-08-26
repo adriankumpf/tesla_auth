@@ -48,24 +48,24 @@ WebView2 provided by Microsoft Edge Chromium is used. So Windows 7, 8, 10 and 11
 
 ### Linux
 
-[WebKitGTK](https://webkitgtk.org/) is required for WebView. So please make sure the following packages are installed:
+[WebKitGTK](https://webkitgtk.org/) is required for WebView and `libxdo` is used to make the predfined Copy, Cut, Paste and SelectAll menu items work. So please make sure the following packages are installed:
 
 #### Arch Linux / Manjaro:
 
 ```bash
-sudo pacman -S webkit2gtk-4.1
+sudo pacman -S webkit2gtk-4.1 xdotool
 ```
 
 #### Debian / Ubuntu:
 
 ```bash
-sudo apt install libwebkit2gtk-4.1-dev
+sudo apt install libwebkit2gtk-4.1-dev libxdo-dev
 ```
 
 #### Fedora
 
 ```bash
-sudo dnf install gtk3-devel webkit2gtk4.1-devel
+sudo dnf install gtk3-devel webkit2gtk4.1-devel xdotool
 ```
 
 ## Development

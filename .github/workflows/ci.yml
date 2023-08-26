@@ -13,7 +13,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: |
           sudo apt-get update
-          sudo apt-get install -y -qq webkit2gtk-4.1
+          sudo apt-get install -y -qq webkit2gtk-4.1 libxdo-dev
       - uses: Swatinem/rust-cache@v2
       - run: cargo test
 
@@ -37,6 +37,6 @@ jobs:
           components: clippy
       - run: |
           sudo apt-get update
-          sudo apt-get install -y -qq webkit2gtk-4.1
+          sudo apt-get install -y -qq webkit2gtk-4.1 libxdo-dev
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy -- -D warnings
