@@ -7,11 +7,9 @@ use log::LevelFilter;
 use oauth2::url::Url;
 use simple_logger::SimpleLogger;
 
-use wry::application::accelerator::{Accelerator, SysMods};
+use muda::{Menu, PredefinedMenuItem, Submenu};
 use wry::application::event::{Event, WindowEvent};
-use wry::application::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
-use wry::application::keyboard::KeyCode;
-use wry::application::menu::{MenuBar, MenuId, MenuItem, MenuItemAttributes, MenuType};
+use wry::application::event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy};
 use wry::application::window::{Window, WindowBuilder};
 use wry::webview::WebViewBuilder;
 
@@ -54,19 +52,67 @@ fn main() -> anyhow::Result<()> {
 
     init_logger(args.debug)?;
 
-    let event_loop = EventLoop::<CustomEvent>::with_user_event();
+    let event_loop = EventLoopBuilder::<CustomEvent>::with_user_event().build();
     let event_proxy = event_loop.create_proxy();
 
     let auth_client = auth::Client::new();
     let auth_url = auth_client.authorize_url();
 
-    let (menu, quit_id) = build_menu();
-
     let window = WindowBuilder::new()
         .with_title("Tesla Auth")
         .with_resizable(true)
-        .with_menu(menu)
         .build(&event_loop)?;
+
+    let menu_bar = Menu::new();
+
+    #[cfg(target_os = "macos")]
+    {
+        let app_m = Submenu::new("App", true);
+        menu_bar.append(&app_m)?;
+        app_m.append_items(&[
+            &PredefinedMenuItem::about(None, None),
+            &PredefinedMenuItem::separator(),
+            &PredefinedMenuItem::hide(None),
+            &PredefinedMenuItem::hide_others(None),
+            &PredefinedMenuItem::show_all(None),
+            &PredefinedMenuItem::separator(),
+            &PredefinedMenuItem::quit(None),
+        ])?;
+    }
+
+    let edit_menu = Submenu::new("&Edit", true);
+    edit_menu.append_items(&[
+        #[cfg(target_os = "macos")]
+        &PredefinedMenuItem::undo(None),
+        #[cfg(target_os = "macos")]
+        &PredefinedMenuItem::redo(None),
+        &PredefinedMenuItem::separator(),
+        &PredefinedMenuItem::cut(None),
+        &PredefinedMenuItem::copy(None),
+        &PredefinedMenuItem::paste(None),
+        &PredefinedMenuItem::select_all(None),
+    ])?;
+
+    let view_menu = Submenu::new("&View", true);
+    view_menu.append_items(&[&PredefinedMenuItem::fullscreen(None)])?;
+
+    let window_menu = Submenu::new("&Window", true);
+    window_menu.append_items(&[&PredefinedMenuItem::minimize(None)])?;
+
+    menu_bar.append_items(&[
+        &edit_menu,
+        #[cfg(target_os = "macos")]
+        &view_menu,
+        #[cfg(not(linux))]
+        &window_menu,
+    ])?;
+
+    #[cfg(target_os = "windows")]
+    menu_bar.init_for_hwnd(window.hwnd() as _);
+    #[cfg(target_os = "linux")]
+    menu_bar.init_for_gtk_window(window.gtk_window(), window.default_vbox());
+    #[cfg(target_os = "macos")]
+    menu_bar.init_for_nsapp();
 
     let webview = WebViewBuilder::new(window)?
         .with_initialization_script(INITIALIZATION_SCRIPT)
@@ -90,12 +136,6 @@ fn main() -> anyhow::Result<()> {
                 event: WindowEvent::CloseRequested,
                 ..
             } => *control_flow = ControlFlow::Exit,
-
-            Event::MenuEvent {
-                menu_id,
-                origin: MenuType::MenuBar,
-                ..
-            } if menu_id == quit_id => *control_flow = ControlFlow::Exit,
 
             Event::UserEvent(CustomEvent::Failure(error)) => {
                 log::error!("{error}");
@@ -131,24 +171,6 @@ fn init_logger(debug: bool) -> anyhow::Result<()> {
         .init()?;
 
     Ok(())
-}
-
-fn build_menu() -> (MenuBar, MenuId) {
-    let mut menu_bar = MenuBar::new();
-    let mut menu = MenuBar::new();
-
-    menu.add_native_item(MenuItem::Copy);
-    menu.add_native_item(MenuItem::Paste);
-    menu.add_native_item(MenuItem::Separator);
-    menu.add_native_item(MenuItem::Hide);
-    let quit_item = menu.add_item(
-        MenuItemAttributes::new("Quit")
-            .with_accelerators(&Accelerator::new(SysMods::Cmd, KeyCode::KeyQ)),
-    );
-
-    menu_bar.add_submenu("", true, menu);
-
-    (menu_bar, quit_item.id())
 }
 
 fn url_handler(
