@@ -12,6 +12,8 @@ use wry::application::event::{Event, WindowEvent};
 use wry::application::event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy};
 #[cfg(target_os = "linux")]
 use wry::application::platform::unix::WindowExtUnix;
+#[cfg(target_os = "windows")]
+use wry::application::platform::windows::WindowExtWindows;
 use wry::application::window::WindowBuilder;
 use wry::webview::WebViewBuilder;
 
