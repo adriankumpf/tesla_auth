@@ -8,14 +8,16 @@ use oauth2::url::Url;
 use simple_logger::SimpleLogger;
 
 use muda::{Menu, PredefinedMenuItem, Submenu};
-use wry::application::event::{Event, WindowEvent};
-use wry::application::event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy};
+use tao::{
+  event::{Event, WindowEvent},
+  event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy},
+  window::WindowBuilder,
+};
 #[cfg(target_os = "linux")]
-use wry::application::platform::unix::WindowExtUnix;
+use tao::platform::unix::WindowExtUnix;
 #[cfg(target_os = "windows")]
-use wry::application::platform::windows::WindowExtWindows;
-use wry::application::window::WindowBuilder;
-use wry::webview::WebViewBuilder;
+use tao::platform::windows::WindowExtWindows;
+use wry::WebViewBuilder;
 
 mod auth;
 mod htime;
@@ -119,7 +121,28 @@ fn main() -> anyhow::Result<()> {
 
     let proxy = event_proxy.clone();
 
-    let webview = WebViewBuilder::new(window)?
+#[cfg(any(
+    target_os = "windows",
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "android"
+  ))]
+  let builder = WebViewBuilder::new(&window);
+
+  #[cfg(not(any(
+    target_os = "windows",
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "android"
+  )))]
+  let builder = {
+    use tao::platform::unix::WindowExtUnix;
+    use wry::WebViewBuilderExtUnix;
+    let vbox = window.default_vbox().unwrap();
+    WebViewBuilder::new_gtk(vbox)
+  };
+
+    let webview = builder
         .with_initialization_script(INITIALIZATION_SCRIPT)
         .with_navigation_handler(move |uri: String| {
             let uri = Url::parse(&uri).expect("not a valid URL");
