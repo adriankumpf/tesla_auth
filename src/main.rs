@@ -8,10 +8,7 @@ use oauth2::url::Url;
 use simple_logger::SimpleLogger;
 
 use muda::{Menu, PredefinedMenuItem, Submenu};
-#[cfg(target_os = "linux")]
-use tao::platform::unix::WindowExtUnix;
-#[cfg(target_os = "windows")]
-use tao::platform::windows::WindowExtWindows;
+
 use tao::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy},
