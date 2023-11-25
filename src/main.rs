@@ -8,7 +8,10 @@ use oauth2::url::Url;
 use simple_logger::SimpleLogger;
 
 use muda::{Menu, PredefinedMenuItem, Submenu};
-
+#[cfg(target_os = "linux")]
+use tao::platform::unix::WindowExtUnix;
+#[cfg(target_os = "windows")]
+use tao::platform::windows::WindowExtWindows;
 use tao::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy},
@@ -133,7 +136,6 @@ fn main() -> anyhow::Result<()> {
         target_os = "android"
     )))]
     let builder = {
-        use tao::platform::unix::WindowExtUnix;
         use wry::WebViewBuilderExtUnix;
         let vbox = window.default_vbox().unwrap();
         WebViewBuilder::new_gtk(vbox)
