@@ -8,15 +8,15 @@ use oauth2::url::Url;
 use simple_logger::SimpleLogger;
 
 use muda::{Menu, PredefinedMenuItem, Submenu};
-use tao::{
-  event::{Event, WindowEvent},
-  event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy},
-  window::WindowBuilder,
-};
 #[cfg(target_os = "linux")]
 use tao::platform::unix::WindowExtUnix;
 #[cfg(target_os = "windows")]
 use tao::platform::windows::WindowExtWindows;
+use tao::{
+    event::{Event, WindowEvent},
+    event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy},
+    window::WindowBuilder,
+};
 use wry::WebViewBuilder;
 
 mod auth;
@@ -121,26 +121,26 @@ fn main() -> anyhow::Result<()> {
 
     let proxy = event_proxy.clone();
 
-#[cfg(any(
-    target_os = "windows",
-    target_os = "macos",
-    target_os = "ios",
-    target_os = "android"
-  ))]
-  let builder = WebViewBuilder::new(&window);
+    #[cfg(any(
+        target_os = "windows",
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "android"
+    ))]
+    let builder = WebViewBuilder::new(&window);
 
-  #[cfg(not(any(
-    target_os = "windows",
-    target_os = "macos",
-    target_os = "ios",
-    target_os = "android"
-  )))]
-  let builder = {
-    use tao::platform::unix::WindowExtUnix;
-    use wry::WebViewBuilderExtUnix;
-    let vbox = window.default_vbox().unwrap();
-    WebViewBuilder::new_gtk(vbox)
-  };
+    #[cfg(not(any(
+        target_os = "windows",
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "android"
+    )))]
+    let builder = {
+        use tao::platform::unix::WindowExtUnix;
+        use wry::WebViewBuilderExtUnix;
+        let vbox = window.default_vbox().unwrap();
+        WebViewBuilder::new_gtk(vbox)
+    };
 
     let webview = builder
         .with_initialization_script(INITIALIZATION_SCRIPT)
