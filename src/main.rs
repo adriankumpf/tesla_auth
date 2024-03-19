@@ -148,7 +148,7 @@ fn main() -> anyhow::Result<()> {
             proxy.send_event(UserEvent::Navigation(uri)).is_ok()
         })
         .with_clipboard(true)
-        .with_url(auth_url.as_str())?
+        .with_url(auth_url.as_str())
         .with_devtools(true)
         .build()?;
 
