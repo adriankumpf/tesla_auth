@@ -121,20 +121,10 @@ fn main() -> anyhow::Result<()> {
 
     let proxy = event_proxy.clone();
 
-    #[cfg(any(
-        target_os = "windows",
-        target_os = "macos",
-        target_os = "ios",
-        target_os = "android"
-    ))]
+    #[cfg(any( target_os = "windows", target_os = "macos"))]
     let builder = WebViewBuilder::new(&window);
 
-    #[cfg(not(any(
-        target_os = "windows",
-        target_os = "macos",
-        target_os = "ios",
-        target_os = "android"
-    )))]
+    #[cfg(not(any( target_os = "windows", target_os = "macos")))]
     let builder = {
         use wry::WebViewBuilderExtUnix;
         let vbox = window.default_vbox().unwrap();
