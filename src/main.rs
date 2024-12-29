@@ -122,7 +122,7 @@ fn main() -> anyhow::Result<()> {
     let proxy = event_proxy.clone();
 
     #[cfg(any(target_os = "windows", target_os = "macos"))]
-    let builder = WebViewBuilder::new(&window);
+    let builder = WebViewBuilder::new();
 
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     let builder = {
@@ -140,7 +140,7 @@ fn main() -> anyhow::Result<()> {
         .with_clipboard(true)
         .with_url(auth_url.as_str())
         .with_devtools(true)
-        .build()?;
+        .build(&window)?;
 
     if args.clear_browsing_data {
         webview.clear_all_browsing_data()?;
