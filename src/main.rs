@@ -121,17 +121,7 @@ fn main() -> anyhow::Result<()> {
 
     let proxy = event_proxy.clone();
 
-    #[cfg(any(target_os = "windows", target_os = "macos"))]
-    let builder = WebViewBuilder::new();
-
-    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-    let builder = {
-        use wry::WebViewBuilderExtUnix;
-        let vbox = window.default_vbox().unwrap();
-        WebViewBuilder::new_gtk(vbox)
-    };
-
-    let webview = builder
+    let builder = WebViewBuilder::new()
         .with_initialization_script(INITIALIZATION_SCRIPT)
         .with_navigation_handler(move |uri: String| {
             let uri = Url::parse(&uri).expect("not a valid URL");
@@ -139,8 +129,18 @@ fn main() -> anyhow::Result<()> {
         })
         .with_clipboard(true)
         .with_url(auth_url.as_str())
-        .with_devtools(true)
-        .build(&window)?;
+        .with_devtools(true);
+
+    #[cfg(any(target_os = "windows", target_os = "macos",))]
+    let webview = builder.build(&window)?;
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos",)))]
+    let webview = {
+        use tao::platform::unix::WindowExtUnix;
+        use wry::WebViewBuilderExtUnix;
+        let vbox = window.default_vbox().unwrap();
+        builder.build_gtk(vbox)?
+    };
 
     if args.clear_browsing_data {
         webview.clear_all_browsing_data()?;
