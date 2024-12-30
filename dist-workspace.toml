@@ -23,3 +23,10 @@ pr-run-mode = "upload"
 [dist.dependencies.apt]
 "webkit2gtk-4.1" = '*'
 libxdo-dev = '*'
+
+[dist.github-custom-runners]
+x86_64-unknown-linux-gnu = "ubuntu-24.04"
+aarch64-unknown-linux-gnu = "ubuntu-24.04"
+aarch64-apple-darwin = "macos-14"
+x86_64-apple-darwin = "macos-14"
+x86_64-pc-windows-msvc = "windows-2022"
