@@ -12,7 +12,6 @@ installers = []
 # Target platforms to build apps for (Rust target-triple syntax)
 targets = [
   "aarch64-apple-darwin",
-  "aarch64-unknown-linux-gnu",
   "x86_64-apple-darwin",
   "x86_64-unknown-linux-gnu",
   "x86_64-pc-windows-msvc",
@@ -25,8 +24,7 @@ pr-run-mode = "upload"
 libxdo-dev = '*'
 
 [dist.github-custom-runners]
-x86_64-unknown-linux-gnu = "ubuntu-24.04"
-aarch64-unknown-linux-gnu = "ubuntu-24.04"
 aarch64-apple-darwin = "macos-14"
 x86_64-apple-darwin = "macos-14"
 x86_64-pc-windows-msvc = "windows-2022"
+x86_64-unknown-linux-gnu = "ubuntu-24.04"
