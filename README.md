@@ -1,7 +1,7 @@
 # Tesla Auth
 
 [![CI](https://github.com/adriankumpf/tesla_auth/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/adriankumpf/tesla_auth/actions/workflows/ci.yml)
-[![CD](https://github.com/adriankumpf/tesla_auth/actions/workflows/cd.yml/badge.svg)](https://github.com/adriankumpf/tesla_auth/actions/workflows/cd.yml)
+[![CD](https://github.com/adriankumpf/tesla_auth/actions/workflows/release.yml/badge.svg)](https://github.com/adriankumpf/tesla_auth/actions/workflows/release.yml)
 
 Securely generate API tokens for third-party access to your Tesla.
 
@@ -9,11 +9,9 @@ Multi-factor authentication (MFA) and Captcha are supported.
 
 ## Download
 
-> _Precompiled binaries are currently only available for x86-64._
-
-- [macOS](https://github.com/adriankumpf/tesla_auth/releases/latest/download/tesla-auth-macos.tar.gz)
-- [Linux](https://github.com/adriankumpf/tesla_auth/releases/latest/download/tesla-auth-linux.tar.gz)
-- [Windows](https://github.com/adriankumpf/tesla_auth/releases/latest/download/tesla-auth-windows.tar.gz)
+- macOS [Apple Silicon](https://github.com/adriankumpf/tesla_auth/releases/latest/download/tesla_auth-aarch64-apple-darwin.tar.xz) / [Intel](https://github.com/adriankumpf/tesla_auth/releases/latest/download/tesla_auth-x86_64-apple-darwin.tar.xz)
+- [Linux](https://github.com/adriankumpf/tesla_auth/releases/latest/download/tesla_auth-x86_64-unknown-linux-gnu.tar.xz)
+- [Windows](https://github.com/adriankumpf/tesla_auth/releases/latest/download/tesla_auth-x86_64-pc-windows-msvc.zip)
 
 ## Usage
 
