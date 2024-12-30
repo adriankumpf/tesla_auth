@@ -113,7 +113,9 @@ fn main() -> anyhow::Result<()> {
     ])?;
 
     #[cfg(target_os = "windows")]
-    menu_bar.init_for_hwnd(window.hwnd() as _)?;
+    unsafe {
+        menu_bar.init_for_hwnd(window.hwnd() as _)?;
+    }
     #[cfg(target_os = "linux")]
     menu_bar.init_for_gtk_window(window.gtk_window(), window.default_vbox())?;
     #[cfg(target_os = "macos")]
