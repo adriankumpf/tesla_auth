@@ -33,3 +33,8 @@ strip = "debuginfo"
 opt-level = "z"  # Optimize for size.
 lto = true
 codegen-units = 1
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
