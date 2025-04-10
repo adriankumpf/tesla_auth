@@ -7,7 +7,7 @@ repository = "https://github.com/adriankumpf/tesla_auth"
 keywords = ["tesla-api", "oauth2", "webview", "cli"]
 categories = ["command-line-utilities"]
 authors = ["Adrian Kumpf"]
-edition = "2021"
+edition = "2024"
 license = "MIT OR Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
