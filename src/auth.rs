@@ -5,13 +5,14 @@ use std::time::Duration;
 use anyhow::anyhow;
 
 use oauth2::basic::BasicClient;
-use oauth2::reqwest::http_client;
+use oauth2::reqwest;
 use oauth2::url::{Host, Url};
 use oauth2::{
     AccessToken, AuthType, AuthUrl, AuthorizationCode, ClientId, CsrfToken, ExtraTokenFields,
     PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, RefreshToken, Scope, StandardTokenResponse,
     TokenResponse, TokenType, TokenUrl,
 };
+use oauth2::{EndpointNotSet, EndpointSet};
 
 use crate::htime;
 
@@ -58,31 +59,37 @@ impl fmt::Display for Tokens {
 
 pub struct Client {
     auth_url: Url,
-    oauth_client: BasicClient,
-    oauth_client_cn: BasicClient,
+    oauth_client:
+        BasicClient<EndpointSet, EndpointNotSet, EndpointNotSet, EndpointNotSet, EndpointSet>,
+    oauth_client_cn:
+        BasicClient<EndpointSet, EndpointNotSet, EndpointNotSet, EndpointNotSet, EndpointSet>,
     pkce_verifier: PkceCodeVerifier,
     csrf_token: CsrfToken,
 }
 
 impl Client {
     pub fn new() -> Client {
-        let oauth_client = BasicClient::new(
-            ClientId::new(CLIENT_ID.to_string()),
-            None,
-            AuthUrl::new(AUTH_URL.to_string()).unwrap(),
-            Some(TokenUrl::new(TOKEN_URL.to_string()).unwrap()),
-        )
-        .set_auth_type(AuthType::RequestBody)
-        .set_redirect_uri(RedirectUrl::new(REDIRECT_URL.to_string()).unwrap());
+        let auth_url =
+            AuthUrl::new(AUTH_URL.to_string()).expect("Invalid authorization endpoint URL");
+        let redirect_url =
+            RedirectUrl::new(REDIRECT_URL.to_string()).expect("Invalid redirect URL");
 
-        let oauth_client_cn = BasicClient::new(
-            ClientId::new(CLIENT_ID.to_string()),
-            None,
-            AuthUrl::new(AUTH_URL.to_string()).unwrap(),
-            Some(TokenUrl::new(TOKEN_URL_CN.to_string()).unwrap()),
-        )
-        .set_auth_type(AuthType::RequestBody)
-        .set_redirect_uri(RedirectUrl::new(REDIRECT_URL.to_string()).unwrap());
+        let token_url = TokenUrl::new(TOKEN_URL.to_string()).expect("Invalid token endpoint URL");
+
+        let token_url_cn =
+            TokenUrl::new(TOKEN_URL_CN.to_string()).expect("Invalid token endpoint URL");
+
+        let oauth_client = BasicClient::new(ClientId::new(CLIENT_ID.to_string()))
+            .set_auth_type(AuthType::RequestBody)
+            .set_redirect_uri(redirect_url.clone())
+            .set_auth_uri(auth_url.clone())
+            .set_token_uri(token_url.clone());
+
+        let oauth_client_cn = BasicClient::new(ClientId::new(CLIENT_ID.to_string()))
+            .set_auth_type(AuthType::RequestBody)
+            .set_redirect_uri(redirect_url)
+            .set_auth_uri(auth_url)
+            .set_token_uri(token_url_cn);
 
         let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
 
@@ -117,10 +124,15 @@ impl Client {
             _global => self.oauth_client,
         };
 
+        let http_client = reqwest::blocking::ClientBuilder::new()
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .expect("Client should build");
+
         let sso_token: SsoToken = client
             .exchange_code(AuthorizationCode::new(code.to_string()))
             .set_pkce_verifier(self.pkce_verifier)
-            .request(http_client)?
+            .request(&http_client)?
             .try_into()?;
 
         let tokens = Tokens {
