@@ -162,8 +162,10 @@ fn main() -> anyhow::Result<()> {
             } => *control_flow = ControlFlow::Exit,
 
             Event::UserEvent(UserEvent::Navigation(url)) => {
-                log::debug!("URL changed: {url}");
-                tx.send(url).unwrap();
+                if url.to_string() != "about:blank" {
+                    log::debug!("URL changed: {url}");
+                    tx.send(url).unwrap();
+                }
             }
 
             Event::UserEvent(UserEvent::Failure(error)) => {
