@@ -10,7 +10,7 @@ Supports MFA and Captcha through Tesla's native login flow.
 ## Download
 
 - macOS [Apple Silicon](https://github.com/adriankumpf/tesla_auth/releases/latest/download/tesla_auth-aarch64-apple-darwin.tar.xz) / [Intel](https://github.com/adriankumpf/tesla_auth/releases/latest/download/tesla_auth-x86_64-apple-darwin.tar.xz)
-- [Linux](https://github.com/adriankumpf/tesla_auth/releases/latest/download/tesla_auth-x86_64-unknown-linux-gnu.tar.xz)
+- Linux [x86_64](https://github.com/adriankumpf/tesla_auth/releases/latest/download/tesla_auth-x86_64-unknown-linux-gnu.tar.xz) / [ARM](https://github.com/adriankumpf/tesla_auth/releases/latest/download/tesla_auth-aarch64-unknown-linux-gnu.tar.xz)
 - [Windows](https://github.com/adriankumpf/tesla_auth/releases/latest/download/tesla_auth-x86_64-pc-windows-msvc.zip)
 
 ## Usage
