@@ -5,7 +5,7 @@
 
 Securely generate API tokens for third-party access to your Tesla.
 
-Multi-factor authentication (MFA) and Captcha are supported.
+Supports MFA and Captcha through Tesla's native login flow.
 
 ## Download
 
@@ -17,7 +17,7 @@ Multi-factor authentication (MFA) and Captcha are supported.
 
 ```plain
 ❯ tesla_auth --help
-Usage: tesla_auth [-d] [-k]
+Usage: tesla_auth [-d] [-c]
 
 Tesla API tokens generator
 
@@ -25,7 +25,7 @@ Options:
   -d, --debug       print debug output
   -c, --clear-browsing-data
                     clear browsing data at startup
-  --help            display usage information
+  --help, help      display usage information
 ```
 
 ### Steps
@@ -82,4 +82,4 @@ cargo install --path . --locked
 
 ## License
 
-Apache-2.0/MIT
+MIT
