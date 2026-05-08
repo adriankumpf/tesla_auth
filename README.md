@@ -66,6 +66,22 @@ sudo apt install libwebkit2gtk-4.1-dev libxdo-dev
 sudo dnf install gtk3-devel webkit2gtk4.1-devel xdotool
 ```
 
+#### Nix/NixOS
+
+For development:
+```bash
+nix develop
+```
+
+To build and run:
+```bash
+# with a local checkout
+nix run .
+
+# without a local checkout
+nix run github:adriankumpf/tesla_auth
+```
+
 ## Development
 
 ```bash
