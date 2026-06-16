@@ -7,7 +7,7 @@ use oauth2::url::Url;
 use simple_logger::SimpleLogger;
 
 use muda::{Menu, PredefinedMenuItem, Submenu};
-#[cfg(target_os = "linux")]
+#[cfg(unix)]
 use tao::platform::unix::WindowExtUnix;
 #[cfg(target_os = "windows")]
 use tao::platform::windows::WindowExtWindows;
@@ -120,7 +120,7 @@ fn main() -> anyhow::Result<()> {
     unsafe {
         menu_bar.init_for_hwnd(window.hwnd() as _)?;
     }
-    #[cfg(target_os = "linux")]
+    #[cfg(unix)]
     menu_bar.init_for_gtk_window(window.gtk_window(), window.default_vbox())?;
     #[cfg(target_os = "macos")]
     menu_bar.init_for_nsapp();
