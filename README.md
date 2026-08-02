@@ -66,6 +66,36 @@ sudo apt install libwebkit2gtk-4.1-dev libxdo-dev
 sudo dnf install gtk3-devel webkit2gtk4.1-devel xdotool
 ```
 
+#### NixOS
+
+A [`flake.nix`](flake.nix) is included in the repository, providing a reproducible
+build and development environment. No manual dependency installation is needed.
+
+```bash
+# Build the release binary → result/bin/tesla_auth
+nix build
+
+# Run directly (the binary is wrapped with all required env vars)
+./result/bin/tesla_auth
+
+# Or compile and run in one step
+nix run
+```
+
+For development:
+
+```bash
+# Enter a dev shell with Rust toolchain and all dependencies
+nix develop
+
+# Inside the dev shell:
+cargo build
+cargo run
+```
+
+The flake uses `nixos-unstable` and pins all dependencies (including `webkitgtk_4_1`,
+`glib-networking` for TLS support, and `nss` for certificates) via `flake.lock`.
+
 ## Development
 
 ```bash
