@@ -2639,7 +2639,6 @@ dependencies = [
  "log",
  "muda",
  "oauth2",
- "serde_json",
  "simple_logger",
  "static_vcruntime",
  "tao",
