@@ -62,18 +62,21 @@ fn main() -> anyhow::Result<()> {
     // native menus it installed.
     let _menu_bar = build_menu_bar(&window)?;
 
-    let webview = build_webview(&window, auth_url.as_str(), true, {
+    let webview = build_webview(&window, true, {
         let event_proxy = event_proxy.clone();
         move |uri| handle_navigation(&event_proxy, uri)
     })?;
 
+    // Must happen before the first navigation, otherwise the stale session
+    // cookies we are supposed to drop are sent along with it.
     if args.clear_browsing_data {
         webview.clear_all_browsing_data()?;
     }
 
-    let tx = spawn_token_exchange(auth_client, event_proxy);
-
     log::debug!("Opening {} ...", &auth_url[..Position::AfterPath]);
+    webview.load_url(auth_url.as_str())?;
+
+    let tx = spawn_token_exchange(auth_client, event_proxy);
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
@@ -206,14 +209,12 @@ fn build_menu_bar(window: &Window) -> anyhow::Result<Menu> {
 
 fn build_webview(
     window: &Window,
-    url: &str,
     devtools: bool,
     navigation_handler: impl Fn(String) -> bool + 'static,
 ) -> anyhow::Result<WebView> {
     let builder = WebViewBuilder::new()
         .with_navigation_handler(navigation_handler)
         .with_clipboard(true)
-        .with_url(url)
         .with_devtools(devtools);
 
     #[cfg(any(target_os = "windows", target_os = "macos"))]
