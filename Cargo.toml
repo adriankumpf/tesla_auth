@@ -17,11 +17,7 @@ anyhow = "1.0.104"
 argh = "0.1.19"
 log = "0.4.33"
 muda = "0.19.3"
-oauth2 = { version = "5.0.0", features = ["reqwest-blocking" ] }
-reqwest = { version = "0.13.4", default-features = false, features = [
-  "json",
-  "rustls",
-] }
+oauth2 = { version = "5.0.0", features = ["reqwest-blocking"] }
 serde_json = "1.0.150"
 simple_logger = { version = "5.2.0", default-features = false, features = [
   "stderr",
