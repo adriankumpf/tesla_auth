@@ -1,4 +1,3 @@
-use std::sync::mpsc::{Sender, channel};
 use std::thread;
 
 use log::LevelFilter;
@@ -23,7 +22,7 @@ mod view;
 
 #[derive(Debug)]
 enum UserEvent {
-    /// The SSO flow reached the callback URL; the code exchange starts now.
+    /// The SSO flow reached the callback URL.
     Redirect(Url),
     Tokens(auth::Tokens),
     Failure(anyhow::Error),
@@ -48,10 +47,8 @@ fn main() -> anyhow::Result<()> {
     init_logger(args.debug)?;
 
     let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
-    let event_proxy = event_loop.create_proxy();
 
     let auth_client = auth::Client::new();
-    let auth_url = auth_client.authorize_url().clone();
 
     let window = WindowBuilder::new()
         .with_title("Tesla Auth")
@@ -62,9 +59,9 @@ fn main() -> anyhow::Result<()> {
     // native menus it installed.
     let _menu_bar = build_menu_bar(&window)?;
 
-    let webview = build_webview(&window, args.debug, {
-        let event_proxy = event_proxy.clone();
-        move |uri| handle_navigation(&event_proxy, uri)
+    let nav_proxy = event_loop.create_proxy();
+    let webview = build_webview(&window, args.debug, move |uri| {
+        handle_navigation(&nav_proxy, uri)
     })?;
 
     // Must happen before the first navigation, otherwise the stale session
@@ -73,10 +70,11 @@ fn main() -> anyhow::Result<()> {
         webview.clear_all_browsing_data()?;
     }
 
-    log::debug!("Opening {} ...", &auth_url[..Position::AfterPath]);
-    webview.load_url(auth_url.as_str())?;
+    webview.load_url(auth_client.authorize_url().as_str())?;
 
-    let tx = spawn_token_exchange(auth_client, event_proxy);
+    // Taken by the first callback: `authenticate` consumes the client.
+    let mut auth_client = Some(auth_client);
+    let event_proxy = event_loop.create_proxy();
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
@@ -91,8 +89,8 @@ fn main() -> anyhow::Result<()> {
             }
 
             Event::UserEvent(UserEvent::Redirect(url)) => {
-                if let Err(e) = tx.send(url) {
-                    log::error!("Token exchange is no longer running: {e}");
+                if let Some(client) = auth_client.take() {
+                    spawn_token_exchange(client, event_proxy.clone(), url);
                 }
                 view::progress()
             }
@@ -259,13 +257,9 @@ fn handle_navigation(event_proxy: &EventLoopProxy<UserEvent>, uri: String) -> bo
 fn spawn_token_exchange(
     client: auth::Client,
     event_proxy: EventLoopProxy<UserEvent>,
-) -> Sender<Url> {
-    let (tx, rx) = channel();
-
+    callback_url: Url,
+) {
     thread::spawn(move || {
-        // A single callback is all we get: `authenticate` consumes the client.
-        let Ok(callback_url) = rx.recv() else { return };
-
         let event = match client.authenticate(&callback_url) {
             Ok(auth::Outcome::Authorized(tokens)) => UserEvent::Tokens(tokens),
             Ok(auth::Outcome::Canceled) => UserEvent::LoginCanceled,
@@ -282,6 +276,4 @@ fn spawn_token_exchange(
             }
         }
     });
-
-    tx
 }
