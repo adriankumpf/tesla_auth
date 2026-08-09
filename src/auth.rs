@@ -26,6 +26,10 @@ const TOKEN_URL_CN: &str = "https://auth.tesla.cn/oauth2/v3/token";
 const REDIRECT_URL: &str = "tesla://auth/callback";
 const SCOPES: &[&str] = &["openid", "email", "offline_access"];
 
+/// Without a timeout an unresponsive endpoint would leave the window stuck
+/// mid-flow forever.
+const EXCHANGE_TIMEOUT: Duration = Duration::from_secs(30);
+
 pub fn is_redirect_url(url: &Url) -> bool {
     url.as_str().starts_with(REDIRECT_URL)
 }
@@ -144,6 +148,7 @@ impl Client {
 
         let http_client = reqwest::blocking::ClientBuilder::new()
             .redirect(reqwest::redirect::Policy::none())
+            .timeout(EXCHANGE_TIMEOUT)
             .build()?;
 
         let sso_token: SsoToken = oauth_client
