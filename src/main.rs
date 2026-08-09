@@ -5,7 +5,7 @@ use oauth2::url::{Position, Url};
 use simple_logger::SimpleLogger;
 
 use muda::{Menu, PredefinedMenuItem, Submenu};
-#[cfg(target_os = "linux")]
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 use tao::platform::unix::WindowExtUnix;
 #[cfg(target_os = "windows")]
 use tao::platform::windows::WindowExtWindows;
@@ -171,11 +171,11 @@ fn build_menu_bar(window: &Window) -> anyhow::Result<Menu> {
     )?;
 
     // The predicates mirror muda's platform support: `fullscreen` exists on
-    // macOS only, `minimize` everywhere but Linux.
+    // macOS only, `minimize` everywhere but the GTK backend.
     #[cfg(target_os = "macos")]
     let view_menu = Submenu::with_items("&View", true, &[&PredefinedMenuItem::fullscreen(None)])?;
 
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
     let window_menu = Submenu::with_items("&Window", true, &[&PredefinedMenuItem::minimize(None)])?;
 
     menu_bar.append_items(&[
@@ -184,7 +184,7 @@ fn build_menu_bar(window: &Window) -> anyhow::Result<Menu> {
         &edit_menu,
         #[cfg(target_os = "macos")]
         &view_menu,
-        #[cfg(not(target_os = "linux"))]
+        #[cfg(any(target_os = "windows", target_os = "macos"))]
         &window_menu,
     ])?;
 
@@ -192,7 +192,7 @@ fn build_menu_bar(window: &Window) -> anyhow::Result<Menu> {
     unsafe {
         menu_bar.init_for_hwnd(window.hwnd() as _)?;
     }
-    #[cfg(target_os = "linux")]
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     menu_bar.init_for_gtk_window(window.gtk_window(), window.default_vbox())?;
     #[cfg(target_os = "macos")]
     {

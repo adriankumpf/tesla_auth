@@ -8,6 +8,7 @@
 - Fix `--clear-browsing-data` racing the initial navigation
 - Time out the token exchange after 30s
 - Print the tokens to stdout if the window is closed during the token exchange
+- Fix the build on FreeBSD and the other BSDs (thanks @feld)
 - Update dependencies
 
 ## [0.13.0] - 2026-04-30
