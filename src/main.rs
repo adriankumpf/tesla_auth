@@ -2,7 +2,7 @@ use std::sync::mpsc::{Sender, channel};
 use std::thread;
 
 use log::LevelFilter;
-use oauth2::url::Url;
+use oauth2::url::{Position, Url};
 use simple_logger::SimpleLogger;
 
 use muda::{Menu, PredefinedMenuItem, Submenu};
@@ -73,7 +73,7 @@ fn main() -> anyhow::Result<()> {
 
     let tx = spawn_token_exchange(auth_client, event_proxy);
 
-    log::debug!("Opening {auth_url} ...");
+    log::debug!("Opening {} ...", &auth_url[..Position::AfterPath]);
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
@@ -244,7 +244,8 @@ fn handle_navigation(event_proxy: &EventLoopProxy<UserEvent>, uri: String) -> bo
     };
 
     if !auth::is_redirect_url(&url) {
-        log::debug!("Navigating to {url} ...");
+        // Everything past the path is redacted: it carries the CSRF state.
+        log::debug!("Navigating to {} ...", &url[..Position::AfterPath]);
         return true;
     }
 
