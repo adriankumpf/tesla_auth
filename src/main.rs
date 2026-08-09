@@ -19,25 +19,12 @@ use wry::WebViewBuilder;
 
 mod auth;
 mod htime;
-
-const INITIALIZATION_SCRIPT: &str = r#"
-window.addEventListener('DOMContentLoaded', (event) => {
-    const url = window.location.toString();
-
-    if (url.startsWith("tesla://auth/callback")) {
-       const loadingText = document.querySelector(
-           '[class*="validated-success-message"], h1.h1'
-       );
-       if (loadingText) {
-           loadingText.textContent = "Generating Tokens ...";
-       }
-    }
-});
-"#;
+mod view;
 
 #[derive(Debug)]
 enum UserEvent {
-    Navigation(Url),
+    /// The SSO flow reached the callback URL; the code exchange starts now.
+    Redirect(Url),
     Tokens(auth::Tokens),
     Failure(anyhow::Error),
     LoginCanceled,
@@ -127,13 +114,22 @@ fn main() -> anyhow::Result<()> {
     let proxy = event_proxy.clone();
 
     let builder = WebViewBuilder::new()
-        .with_initialization_script(INITIALIZATION_SCRIPT)
         .with_navigation_handler(move |uri: String| {
-            let Ok(uri) = Url::parse(&uri) else {
+            let Ok(url) = Url::parse(&uri) else {
                 log::warn!("Ignoring malformed navigation URL: {uri}");
                 return false;
             };
-            proxy.send_event(UserEvent::Navigation(uri)).is_ok()
+
+            if !auth::is_redirect_url(&url) {
+                log::debug!("Navigating to {url} ...");
+                return true;
+            }
+
+            // Nothing on the system handles the callback scheme, so following
+            // it would at best fail and at worst hand the authorization code
+            // to whichever application claims it.
+            let _ = proxy.send_event(UserEvent::Redirect(url));
+            false
         })
         .with_clipboard(true)
         .with_url(auth_url.as_str())
@@ -153,44 +149,50 @@ fn main() -> anyhow::Result<()> {
         webview.clear_all_browsing_data()?;
     }
 
-    let tx = url_handler(auth_client, event_proxy);
+    let tx = spawn_token_exchange(auth_client, event_proxy);
 
     log::debug!("Opening {auth_url} ...");
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
 
-        match event {
+        let page = match event {
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
-            } => *control_flow = ControlFlow::Exit,
+            } => {
+                *control_flow = ControlFlow::Exit;
+                return;
+            }
 
-            Event::UserEvent(UserEvent::Navigation(url)) if url.as_str() != "about:blank" => {
-                log::debug!("URL changed: {url}");
-                let _ = tx.send(url);
+            Event::UserEvent(UserEvent::Redirect(url)) => {
+                if let Err(e) = tx.send(url) {
+                    log::error!("Token exchange is no longer running: {e}");
+                }
+                view::progress()
+            }
+
+            Event::UserEvent(UserEvent::Tokens(tokens)) => {
+                println!("{tokens}");
+                view::tokens(&tokens)
             }
 
             Event::UserEvent(UserEvent::Failure(error)) => {
                 log::error!("{error}");
-                if let Err(e) = webview.evaluate_script(&render_error_view(error)) {
-                    log::error!("Failed to render error view: {e}");
-                }
-            }
-
-            Event::UserEvent(UserEvent::Tokens(token)) => {
-                println!("{token}");
-                if let Err(e) = webview.evaluate_script(&render_tokens_view(token)) {
-                    log::error!("Failed to render tokens view: {e}");
-                }
+                view::error(&error)
             }
 
             Event::UserEvent(UserEvent::LoginCanceled) => {
                 log::warn!("Login canceled");
                 *control_flow = ControlFlow::Exit;
+                return;
             }
 
-            _ => (),
+            _ => return,
+        };
+
+        if let Err(e) = webview.load_html(&page) {
+            log::error!("Failed to render page: {e}");
         }
     });
 }
@@ -213,16 +215,17 @@ fn init_logger(debug: bool) -> anyhow::Result<()> {
 
 /// Exchanges the authorization code on a background thread; the request blocks
 /// and would otherwise freeze the event loop.
-fn url_handler(client: auth::Client, event_proxy: EventLoopProxy<UserEvent>) -> Sender<Url> {
+fn spawn_token_exchange(
+    client: auth::Client,
+    event_proxy: EventLoopProxy<UserEvent>,
+) -> Sender<Url> {
     let (tx, rx) = channel();
 
     thread::spawn(move || {
         // A single callback is all we get: `authenticate` consumes the client.
-        let Some(url) = rx.into_iter().find(auth::is_redirect_url) else {
-            return;
-        };
+        let Ok(callback_url) = rx.recv() else { return };
 
-        let event = match client.authenticate(&url) {
+        let event = match client.authenticate(&callback_url) {
             Ok(auth::Outcome::Authorized(tokens)) => UserEvent::Tokens(tokens),
             Ok(auth::Outcome::Canceled) => UserEvent::LoginCanceled,
             Err(error) => UserEvent::Failure(error),
@@ -232,92 +235,4 @@ fn url_handler(client: auth::Client, event_proxy: EventLoopProxy<UserEvent>) -> 
     });
 
     tx
-}
-
-// Encode a string as a JSON string literal for safe JS interpolation.
-#[expect(clippy::unwrap_used)] // serde_json string serialization is infallible
-fn js_string(s: &str) -> String {
-    serde_json::to_string(s).unwrap()
-}
-
-fn render_error_view(error: anyhow::Error) -> String {
-    let msg = js_string(&error.to_string());
-    format!(
-        r#"(function() {{
-            var mount = document.getElementById("tesla-auth-result");
-            if (!mount) {{
-                mount = document.createElement("div");
-                mount.id = "tesla-auth-result";
-                mount.style.cssText = "position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(255,255,255,0.98);overflow:auto";
-                document.body.appendChild(mount);
-            }}
-
-            mount.replaceChildren();
-
-            var card = document.createElement("div");
-            card.style.cssText = "width:min(720px,100%);display:flex;flex-direction:column;gap:12px;padding:28px;border-radius:16px;background:#fff;box-shadow:0 16px 48px rgba(0,0,0,0.12);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
-
-            var h4 = document.createElement("h4");
-            h4.style.cssText = "margin:0;text-align:center;font-size:28px;line-height:1.2";
-            h4.textContent = "An error occurred. Please try again ...";
-            var p = document.createElement("p");
-            p.style.cssText = "margin:0;text-align:center;color:#b91c1c";
-            p.textContent = {msg};
-
-            card.append(h4, p);
-            mount.appendChild(card);
-        }})()"#
-    )
-}
-
-fn render_tokens_view(tokens: auth::Tokens) -> String {
-    let access = js_string(tokens.access.secret());
-    let refresh = js_string(tokens.refresh.secret());
-    let expires = js_string(&tokens.expires_in.to_string());
-    format!(
-        r#"(function() {{
-            var mount = document.getElementById("tesla-auth-result");
-            if (!mount) {{
-                mount = document.createElement("div");
-                mount.id = "tesla-auth-result";
-                mount.style.cssText = "position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(255,255,255,0.98);overflow:auto";
-                document.body.appendChild(mount);
-            }}
-
-            mount.replaceChildren();
-
-            var card = document.createElement("div");
-            card.style.cssText = "width:min(900px,100%);display:flex;flex-direction:column;gap:16px;padding:28px;border-radius:16px;background:#fff;box-shadow:0 16px 48px rgba(0,0,0,0.12);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
-
-            function addToken(label, value) {{
-                var h4 = document.createElement("h4");
-                h4.style.cssText = "margin:0;text-align:center;font-size:24px;line-height:1.2";
-                h4.textContent = label;
-                card.appendChild(h4);
-                var ta = document.createElement("textarea");
-                ta.readOnly = true;
-                ta.cols = 100;
-                ta.rows = 12;
-                ta.style.cssText = "width:100%;resize:vertical;padding:12px;font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;border:1px solid #d1d5db;border-radius:12px;box-sizing:border-box";
-                ta.value = value;
-                ta.addEventListener("click", function() {{ this.setSelectionRange(0, this.value.length); }});
-                card.appendChild(ta);
-            }}
-
-            var title = document.createElement("h3");
-            title.style.cssText = "margin:0;text-align:center;font-size:30px;line-height:1.2";
-            title.textContent = "Tesla API Tokens";
-            card.appendChild(title);
-
-            addToken("Access Token", {access});
-            addToken("Refresh Token", {refresh});
-
-            var small = document.createElement("small");
-            small.style.cssText = "display:block;margin-top:4px;text-align:center;color:seagreen;font-size:14px";
-            small.textContent = "Valid for " + {expires};
-            card.appendChild(small);
-
-            mount.appendChild(card);
-        }})()"#
-    )
 }
