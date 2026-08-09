@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::sync::mpsc::{Sender, channel};
 use std::thread;
 
@@ -65,7 +64,7 @@ fn main() -> anyhow::Result<()> {
     let event_proxy = event_loop.create_proxy();
 
     let auth_client = auth::Client::new();
-    let auth_url = auth_client.authorize_url();
+    let auth_url = auth_client.authorize_url().clone();
 
     let window = WindowBuilder::new()
         .with_title("Tesla Auth")
@@ -212,46 +211,27 @@ fn init_logger(debug: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Exchanges the authorization code on a background thread; the request blocks
+/// and would otherwise freeze the event loop.
 fn url_handler(client: auth::Client, event_proxy: EventLoopProxy<UserEvent>) -> Sender<Url> {
     let (tx, rx) = channel();
 
     thread::spawn(move || {
-        while let Ok(url) = rx.recv() {
-            if auth::is_redirect_url(&url) {
-                let event = handle_redirect(&url, client);
-                let _ = event_proxy.send_event(event);
-                return;
-            }
-        }
+        // A single callback is all we get: `authenticate` consumes the client.
+        let Some(url) = rx.into_iter().find(auth::is_redirect_url) else {
+            return;
+        };
+
+        let event = match client.authenticate(&url) {
+            Ok(auth::Outcome::Authorized(tokens)) => UserEvent::Tokens(tokens),
+            Ok(auth::Outcome::Canceled) => UserEvent::LoginCanceled,
+            Err(error) => UserEvent::Failure(error),
+        };
+
+        let _ = event_proxy.send_event(event);
     });
 
     tx
-}
-
-fn handle_redirect(url: &Url, client: auth::Client) -> UserEvent {
-    let query: HashMap<_, _> = url.query_pairs().collect();
-
-    if query.get("error").is_some_and(|v| v == "login_cancelled") {
-        return UserEvent::LoginCanceled;
-    }
-
-    let (Some(state), Some(code), Some(issuer)) =
-        (query.get("state"), query.get("code"), query.get("issuer"))
-    else {
-        return UserEvent::Failure(anyhow::anyhow!(
-            "Redirect URL missing required query parameters (state, code, or issuer)"
-        ));
-    };
-
-    let issuer_url = match Url::parse(issuer) {
-        Ok(url) => url,
-        Err(e) => return UserEvent::Failure(anyhow::anyhow!("Invalid issuer URL: {e}")),
-    };
-
-    match client.retrieve_tokens(code, state, &issuer_url) {
-        Ok(tokens) => UserEvent::Tokens(tokens),
-        Err(error) => UserEvent::Failure(error),
-    }
 }
 
 // Encode a string as a JSON string literal for safe JS interpolation.
