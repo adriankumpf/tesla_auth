@@ -13,21 +13,21 @@ license = "MIT"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.102"
+anyhow = "1.0.104"
 argh = "0.1.19"
-log = "0.4.29"
-muda = "0.19.1"
+log = "0.4.33"
+muda = "0.19.3"
 oauth2 = { version = "5.0.0", features = ["reqwest-blocking" ] }
-reqwest = { version = "0.13.3", default-features = false, features = [
+reqwest = { version = "0.13.4", default-features = false, features = [
   "json",
   "rustls",
 ] }
-serde_json = "1.0.149"
+serde_json = "1.0.150"
 simple_logger = { version = "5.2.0", default-features = false, features = [
   "stderr",
 ] }
-tao = { version = "0.35", default-features = false, features = ["rwh_06"] }
-wry = { version = "0.55.0", features = ["devtools"] }
+tao = { version = "0.36", default-features = false, features = ["rwh_06"] }
+wry = { version = "0.56.0", features = ["devtools"] }
 
 [build-dependencies]
 static_vcruntime = "3.0.0"
