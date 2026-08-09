@@ -136,18 +136,14 @@ fn init_logger(debug: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg_attr(
-    target_os = "macos",
-    expect(unused_variables, reason = "the menu bar belongs to the application")
-)]
 fn build_menu_bar(window: &Window) -> anyhow::Result<Menu> {
     let menu_bar = Menu::new();
 
     #[cfg(target_os = "macos")]
-    {
-        let app_menu = Submenu::new("App", true);
-        menu_bar.append(&app_menu)?;
-        app_menu.append_items(&[
+    let app_menu = Submenu::with_items(
+        "App",
+        true,
+        &[
             &PredefinedMenuItem::about(None, None),
             &PredefinedMenuItem::separator(),
             &PredefinedMenuItem::hide(None),
@@ -155,37 +151,36 @@ fn build_menu_bar(window: &Window) -> anyhow::Result<Menu> {
             &PredefinedMenuItem::show_all(None),
             &PredefinedMenuItem::separator(),
             &PredefinedMenuItem::quit(None),
-        ])?;
-    }
+        ],
+    )?;
 
-    let edit_menu = Submenu::new("&Edit", true);
-    edit_menu.append_items(&[
-        #[cfg(target_os = "macos")]
-        &PredefinedMenuItem::undo(None),
-        #[cfg(target_os = "macos")]
-        &PredefinedMenuItem::redo(None),
-        &PredefinedMenuItem::separator(),
-        &PredefinedMenuItem::cut(None),
-        &PredefinedMenuItem::copy(None),
-        &PredefinedMenuItem::paste(None),
-        &PredefinedMenuItem::select_all(None),
-    ])?;
+    let edit_menu = Submenu::with_items(
+        "&Edit",
+        true,
+        &[
+            #[cfg(target_os = "macos")]
+            &PredefinedMenuItem::undo(None),
+            #[cfg(target_os = "macos")]
+            &PredefinedMenuItem::redo(None),
+            &PredefinedMenuItem::separator(),
+            &PredefinedMenuItem::cut(None),
+            &PredefinedMenuItem::copy(None),
+            &PredefinedMenuItem::paste(None),
+            &PredefinedMenuItem::select_all(None),
+        ],
+    )?;
 
+    // The predicates mirror muda's platform support: `fullscreen` exists on
+    // macOS only, `minimize` everywhere but Linux.
     #[cfg(target_os = "macos")]
-    let view_menu = {
-        let view_menu = Submenu::new("&View", true);
-        view_menu.append_items(&[&PredefinedMenuItem::fullscreen(None)])?;
-        view_menu
-    };
+    let view_menu = Submenu::with_items("&View", true, &[&PredefinedMenuItem::fullscreen(None)])?;
 
     #[cfg(not(target_os = "linux"))]
-    let window_menu = {
-        let window_menu = Submenu::new("&Window", true);
-        window_menu.append_items(&[&PredefinedMenuItem::minimize(None)])?;
-        window_menu
-    };
+    let window_menu = Submenu::with_items("&Window", true, &[&PredefinedMenuItem::minimize(None)])?;
 
     menu_bar.append_items(&[
+        #[cfg(target_os = "macos")]
+        &app_menu,
         &edit_menu,
         #[cfg(target_os = "macos")]
         &view_menu,
@@ -200,7 +195,11 @@ fn build_menu_bar(window: &Window) -> anyhow::Result<Menu> {
     #[cfg(target_os = "linux")]
     menu_bar.init_for_gtk_window(window.gtk_window(), window.default_vbox())?;
     #[cfg(target_os = "macos")]
-    menu_bar.init_for_nsapp();
+    {
+        // The menu bar belongs to the application rather than to any window.
+        let _ = window;
+        menu_bar.init_for_nsapp();
+    }
 
     Ok(menu_bar)
 }
