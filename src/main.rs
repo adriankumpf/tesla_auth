@@ -12,7 +12,7 @@ use tao::platform::unix::WindowExtUnix;
 use tao::platform::windows::WindowExtWindows;
 use tao::{
     event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy},
+    event_loop::{ControlFlow, EventLoopBuilder, EventLoopClosed, EventLoopProxy},
     window::{Window, WindowBuilder},
 };
 use wry::{WebView, WebViewBuilder};
@@ -272,7 +272,15 @@ fn spawn_token_exchange(
             Err(error) => UserEvent::Failure(error),
         };
 
-        let _ = event_proxy.send_event(event);
+        // The window may have been closed while the exchange was in flight. The
+        // tokens exist either way, so fall back to stdout rather than lose them.
+        if let Err(EventLoopClosed(event)) = event_proxy.send_event(event) {
+            match event {
+                UserEvent::Tokens(tokens) => println!("{tokens}"),
+                UserEvent::Failure(error) => log::error!("{error}"),
+                _ => (),
+            }
+        }
     });
 
     tx
