@@ -62,7 +62,7 @@ fn main() -> anyhow::Result<()> {
     // native menus it installed.
     let _menu_bar = build_menu_bar(&window)?;
 
-    let webview = build_webview(&window, true, {
+    let webview = build_webview(&window, args.debug, {
         let event_proxy = event_proxy.clone();
         move |uri| handle_navigation(&event_proxy, uri)
     })?;
