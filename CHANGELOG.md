@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.14.0] - 2026-08-10
+
+- Show the tokens on a standalone result page, plus a progress page while the token exchange is in flight
+- Keep the authorization code and CSRF state out of the `--debug` logs
+- Only enable the dev tools with `--debug`
+- Fix `--clear-browsing-data` racing the initial navigation
+- Time out the token exchange after 30s
+- Print the tokens to stdout if the window is closed during the token exchange
+- Update dependencies
+
 ## [0.13.0] - 2026-04-30
 
 - Fix Tesla token fetching via the updated callback URL
