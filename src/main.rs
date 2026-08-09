@@ -13,9 +13,9 @@ use tao::platform::windows::WindowExtWindows;
 use tao::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoopBuilder, EventLoopProxy},
-    window::WindowBuilder,
+    window::{Window, WindowBuilder},
 };
-use wry::WebViewBuilder;
+use wry::{WebView, WebViewBuilder};
 
 mod auth;
 mod htime;
@@ -58,92 +58,14 @@ fn main() -> anyhow::Result<()> {
         .with_resizable(true)
         .build(&event_loop)?;
 
-    let menu_bar = Menu::new();
+    // Kept alive for as long as the window: dropping it would tear down the
+    // native menus it installed.
+    let _menu_bar = build_menu_bar(&window)?;
 
-    #[cfg(target_os = "macos")]
-    {
-        let app_m = Submenu::new("App", true);
-        menu_bar.append(&app_m)?;
-        app_m.append_items(&[
-            &PredefinedMenuItem::about(None, None),
-            &PredefinedMenuItem::separator(),
-            &PredefinedMenuItem::hide(None),
-            &PredefinedMenuItem::hide_others(None),
-            &PredefinedMenuItem::show_all(None),
-            &PredefinedMenuItem::separator(),
-            &PredefinedMenuItem::quit(None),
-        ])?;
-    }
-
-    let edit_menu = Submenu::new("&Edit", true);
-    edit_menu.append_items(&[
-        #[cfg(target_os = "macos")]
-        &PredefinedMenuItem::undo(None),
-        #[cfg(target_os = "macos")]
-        &PredefinedMenuItem::redo(None),
-        &PredefinedMenuItem::separator(),
-        &PredefinedMenuItem::cut(None),
-        &PredefinedMenuItem::copy(None),
-        &PredefinedMenuItem::paste(None),
-        &PredefinedMenuItem::select_all(None),
-    ])?;
-
-    let view_menu = Submenu::new("&View", true);
-    view_menu.append_items(&[&PredefinedMenuItem::fullscreen(None)])?;
-
-    let window_menu = Submenu::new("&Window", true);
-    window_menu.append_items(&[&PredefinedMenuItem::minimize(None)])?;
-
-    menu_bar.append_items(&[
-        &edit_menu,
-        #[cfg(target_os = "macos")]
-        &view_menu,
-        #[cfg(not(target_os = "linux"))]
-        &window_menu,
-    ])?;
-
-    #[cfg(target_os = "windows")]
-    unsafe {
-        menu_bar.init_for_hwnd(window.hwnd() as _)?;
-    }
-    #[cfg(target_os = "linux")]
-    menu_bar.init_for_gtk_window(window.gtk_window(), window.default_vbox())?;
-    #[cfg(target_os = "macos")]
-    menu_bar.init_for_nsapp();
-
-    let proxy = event_proxy.clone();
-
-    let builder = WebViewBuilder::new()
-        .with_navigation_handler(move |uri: String| {
-            let Ok(url) = Url::parse(&uri) else {
-                log::warn!("Ignoring malformed navigation URL: {uri}");
-                return false;
-            };
-
-            if !auth::is_redirect_url(&url) {
-                log::debug!("Navigating to {url} ...");
-                return true;
-            }
-
-            // Nothing on the system handles the callback scheme, so following
-            // it would at best fail and at worst hand the authorization code
-            // to whichever application claims it.
-            let _ = proxy.send_event(UserEvent::Redirect(url));
-            false
-        })
-        .with_clipboard(true)
-        .with_url(auth_url.as_str())
-        .with_devtools(true);
-
-    #[cfg(any(target_os = "windows", target_os = "macos",))]
-    let webview = builder.build(&window)?;
-
-    #[cfg(not(any(target_os = "windows", target_os = "macos",)))]
-    let webview = {
-        use wry::WebViewBuilderExtUnix;
-        let vbox = window.default_vbox().unwrap();
-        builder.build_gtk(vbox)?
-    };
+    let webview = build_webview(&window, auth_url.as_str(), true, {
+        let event_proxy = event_proxy.clone();
+        move |uri| handle_navigation(&event_proxy, uri)
+    })?;
 
     if args.clear_browsing_data {
         webview.clear_all_browsing_data()?;
@@ -211,6 +133,123 @@ fn init_logger(debug: bool) -> anyhow::Result<()> {
         .init()?;
 
     Ok(())
+}
+
+#[cfg_attr(
+    target_os = "macos",
+    expect(unused_variables, reason = "the menu bar belongs to the application")
+)]
+fn build_menu_bar(window: &Window) -> anyhow::Result<Menu> {
+    let menu_bar = Menu::new();
+
+    #[cfg(target_os = "macos")]
+    {
+        let app_menu = Submenu::new("App", true);
+        menu_bar.append(&app_menu)?;
+        app_menu.append_items(&[
+            &PredefinedMenuItem::about(None, None),
+            &PredefinedMenuItem::separator(),
+            &PredefinedMenuItem::hide(None),
+            &PredefinedMenuItem::hide_others(None),
+            &PredefinedMenuItem::show_all(None),
+            &PredefinedMenuItem::separator(),
+            &PredefinedMenuItem::quit(None),
+        ])?;
+    }
+
+    let edit_menu = Submenu::new("&Edit", true);
+    edit_menu.append_items(&[
+        #[cfg(target_os = "macos")]
+        &PredefinedMenuItem::undo(None),
+        #[cfg(target_os = "macos")]
+        &PredefinedMenuItem::redo(None),
+        &PredefinedMenuItem::separator(),
+        &PredefinedMenuItem::cut(None),
+        &PredefinedMenuItem::copy(None),
+        &PredefinedMenuItem::paste(None),
+        &PredefinedMenuItem::select_all(None),
+    ])?;
+
+    #[cfg(target_os = "macos")]
+    let view_menu = {
+        let view_menu = Submenu::new("&View", true);
+        view_menu.append_items(&[&PredefinedMenuItem::fullscreen(None)])?;
+        view_menu
+    };
+
+    #[cfg(not(target_os = "linux"))]
+    let window_menu = {
+        let window_menu = Submenu::new("&Window", true);
+        window_menu.append_items(&[&PredefinedMenuItem::minimize(None)])?;
+        window_menu
+    };
+
+    menu_bar.append_items(&[
+        &edit_menu,
+        #[cfg(target_os = "macos")]
+        &view_menu,
+        #[cfg(not(target_os = "linux"))]
+        &window_menu,
+    ])?;
+
+    #[cfg(target_os = "windows")]
+    unsafe {
+        menu_bar.init_for_hwnd(window.hwnd() as _)?;
+    }
+    #[cfg(target_os = "linux")]
+    menu_bar.init_for_gtk_window(window.gtk_window(), window.default_vbox())?;
+    #[cfg(target_os = "macos")]
+    menu_bar.init_for_nsapp();
+
+    Ok(menu_bar)
+}
+
+fn build_webview(
+    window: &Window,
+    url: &str,
+    devtools: bool,
+    navigation_handler: impl Fn(String) -> bool + 'static,
+) -> anyhow::Result<WebView> {
+    let builder = WebViewBuilder::new()
+        .with_navigation_handler(navigation_handler)
+        .with_clipboard(true)
+        .with_url(url)
+        .with_devtools(devtools);
+
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
+    let webview = builder.build(window)?;
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    let webview = {
+        use wry::WebViewBuilderExtUnix;
+        let vbox = window
+            .default_vbox()
+            .ok_or_else(|| anyhow::anyhow!("Window has no GTK container"))?;
+        builder.build_gtk(vbox)?
+    };
+
+    Ok(webview)
+}
+
+/// Decides whether the webview may follow a navigation.
+///
+/// The callback URL uses a `tesla://` scheme that nothing on the system handles,
+/// so following it would at best fail and at worst hand the authorization code
+/// to whichever application happens to claim the scheme. Cancel it and take over
+/// the window instead.
+fn handle_navigation(event_proxy: &EventLoopProxy<UserEvent>, uri: String) -> bool {
+    let Ok(url) = Url::parse(&uri) else {
+        log::warn!("Ignoring malformed navigation URL");
+        return false;
+    };
+
+    if !auth::is_redirect_url(&url) {
+        log::debug!("Navigating to {url} ...");
+        return true;
+    }
+
+    let _ = event_proxy.send_event(UserEvent::Redirect(url));
+    false
 }
 
 /// Exchanges the authorization code on a background thread; the request blocks
