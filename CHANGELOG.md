@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+- Disable WebKitGTK's DMA-BUF renderer by default on Linux, which fixes blank windows and immediate crashes on affected drivers (`WEBKIT_DISABLE_DMABUF_RENDERER=0` restores it)
+- Stop cancelling navigations whose URL cannot be parsed, which could take down an embedded captcha as the handler also sees subframe navigations
+- Add a `--version` flag
+- Document troubleshooting steps and the minimum distribution versions
+
 ## [0.14.0] - 2026-08-10
 
 - Show the tokens on a standalone result page, plus a progress page while the token exchange is in flight
@@ -120,6 +127,7 @@
 
 ## [0.1.0] - 2021-09-17
 
+[Unreleased]: https://github.com/adriankumpf/tesla_auth/compare/v0.14.0...HEAD
 [0.14.0]: https://github.com/adriankumpf/tesla_auth/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/adriankumpf/tesla_auth/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/adriankumpf/tesla_auth/compare/v0.11.0...v0.12.0
