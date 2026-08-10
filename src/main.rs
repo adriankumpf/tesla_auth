@@ -39,10 +39,22 @@ struct Args {
     /// clear browsing data at startup
     #[argh(switch, short = 'c')]
     clear_browsing_data: bool,
+
+    /// print the version and exit
+    #[argh(switch, short = 'v')]
+    version: bool,
 }
 
 fn main() -> anyhow::Result<()> {
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    disable_dmabuf_renderer();
+
     let args: Args = argh::from_env();
+
+    if args.version {
+        println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
 
     init_logger(args.debug)?;
 
@@ -118,6 +130,25 @@ fn main() -> anyhow::Result<()> {
             log::error!("Failed to render page: {e}");
         }
     });
+}
+
+/// Opts out of WebKitGTK's DMA-BUF renderer.
+///
+/// It fails to allocate buffers on a number of drivers — the NVIDIA proprietary
+/// one above all — which shows up as `Failed to create GBM buffer`, a blank
+/// window, or a window that vanishes as soon as it opens. A login form has
+/// nothing to gain from GPU compositing, so take the safe path by default;
+/// `WEBKIT_DISABLE_DMABUF_RENDERER=0` puts it back.
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+fn disable_dmabuf_renderer() {
+    const VAR: &str = "WEBKIT_DISABLE_DMABUF_RENDERER";
+
+    if std::env::var_os(VAR).is_none() {
+        // SAFETY: called as the first statement of `main`, so the process is
+        // still single-threaded. It must also stay ahead of the event loop,
+        // which brings up GTK and with it threads that read the environment.
+        unsafe { std::env::set_var(VAR, "1") };
+    }
 }
 
 fn init_logger(debug: bool) -> anyhow::Result<()> {
@@ -235,10 +266,15 @@ fn build_webview(
 /// so following it would at best fail and at worst hand the authorization code
 /// to whichever application happens to claim the scheme. Cancel it and take over
 /// the window instead.
+///
+/// Everything else is allowed through, a URI we cannot parse included: the
+/// handler also sees subframe navigations, so cancelling one risks taking an
+/// embedded captcha down with it, and a URI that fails to parse is by
+/// definition not the callback.
 fn handle_navigation(event_proxy: &EventLoopProxy<UserEvent>, uri: String) -> bool {
     let Ok(url) = Url::parse(&uri) else {
-        log::warn!("Ignoring malformed navigation URL");
-        return false;
+        log::debug!("Navigating to a URL we could not parse ...");
+        return true;
     };
 
     if !auth::is_redirect_url(&url) {

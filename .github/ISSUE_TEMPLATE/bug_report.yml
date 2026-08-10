@@ -1,0 +1,55 @@
+name: Bug report
+description: Report a problem with tesla_auth
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please check the [troubleshooting section](https://github.com/adriankumpf/tesla_auth#troubleshooting) first — it may already cover your problem.
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `tesla_auth --version`.
+      placeholder: tesla_auth 0.14.0
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      description: Include the distribution and, on Linux, the desktop session and GPU driver.
+      placeholder: Ubuntu 24.04, GNOME on Wayland, NVIDIA proprietary
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install it?
+      options:
+        - Prebuilt binary from the releases page
+        - cargo install
+        - Distribution package (AUR, ...)
+        - Built from source
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: At which step of the login flow does it go wrong, what did you expect instead, and what happens now?
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output of `tesla_auth --debug`
+      description: Please redact anything that looks like a token, an authorization code or your email address.
+      render: shell
+    validations:
+      required: true
