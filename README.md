@@ -17,7 +17,7 @@ Supports MFA and Captcha through Tesla's native login flow.
 
 ```plain
 ❯ tesla_auth --help
-Usage: tesla_auth [-d] [-c]
+Usage: tesla_auth [-d] [-c] [-v]
 
 Tesla API tokens generator
 
@@ -25,6 +25,7 @@ Options:
   -d, --debug       print debug output
   -c, --clear-browsing-data
                     clear browsing data at startup
+  -v, --version     print the version and exit
   --help, help      display usage information
 ```
 

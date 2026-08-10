@@ -39,6 +39,10 @@ struct Args {
     /// clear browsing data at startup
     #[argh(switch, short = 'c')]
     clear_browsing_data: bool,
+
+    /// print the version and exit
+    #[argh(switch, short = 'v')]
+    version: bool,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -46,6 +50,11 @@ fn main() -> anyhow::Result<()> {
     disable_dmabuf_renderer();
 
     let args: Args = argh::from_env();
+
+    if args.version {
+        println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
 
     init_logger(args.debug)?;
 
