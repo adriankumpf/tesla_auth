@@ -47,7 +47,9 @@ WebView2 provided by Microsoft Edge Chromium is used. So Windows 7, 8, 10 and 11
 
 ### Linux
 
-[WebKitGTK](https://webkitgtk.org/) is required for WebView and `libxdo` is used to make the predfined Copy, Cut, Paste and SelectAll menu items work. So please make sure the following packages are installed:
+[WebKitGTK](https://webkitgtk.org/) 4.1 is required for WebView and `libxdo` is used to make the predfined Copy, Cut, Paste and SelectAll menu items work. Ubuntu 22.04, Debian 12 and Fedora 36 are the earliest releases that ship WebKitGTK 4.1; on anything older neither the prebuilt binaries nor a local build will run.
+
+So please make sure the following packages are installed:
 
 #### Arch Linux / Manjaro:
 
@@ -66,6 +68,42 @@ sudo apt install libwebkit2gtk-4.1-dev libxdo-dev
 ```bash
 sudo dnf install gtk3-devel webkit2gtk4.1-devel xdotool
 ```
+
+## Troubleshooting
+
+Run `tesla_auth --debug` first: it prints the URLs the webview navigates to, which is usually enough to tell where a flow gets stuck.
+
+### Blank window, or a window that disappears immediately (Linux)
+
+WebKitGTK's accelerated rendering paths misbehave on a number of drivers, the NVIDIA proprietary one in particular. Typical symptoms are `Failed to create GBM buffer of size …` or `Error 71 (Protocol error) dispatching to Wayland display`.
+
+`tesla_auth` therefore disables the DMA-BUF renderer by default. If the window still does not come up, try:
+
+```bash
+WEBKIT_DISABLE_COMPOSITING_MODE=1 tesla_auth   # turn off compositing entirely
+GDK_BACKEND=x11 tesla_auth                     # run under XWayland
+WEBKIT_DISABLE_DMABUF_RENDERER=0 tesla_auth    # opt back into the default renderer
+```
+
+### The login form keeps returning to the sign-in page
+
+Stale cookies from a previous session are the usual cause. Start over with a clean profile:
+
+```bash
+tesla_auth --clear-browsing-data
+```
+
+### `Access Denied — You don't have permission to access … on this server`
+
+The request was rejected by Tesla's CDN before it ever reached the login page (the reference URL points at `errors.edgesuite.net`, i.e. Akamai). This is an IP reputation block rather than something `tesla_auth` can influence — disconnect from a VPN, or force a new public IP by power-cycling your router, and try again.
+
+### TeslaMate reports `Error: Tokens are invalid`
+
+The tokens are pasted into TeslaMate, which then talks to `auth.tesla.com` itself. If that request fails, TeslaMate reports the tokens as invalid even though they are fine — check its logs for the actual error, and retry once Tesla's SSO endpoints are healthy again.
+
+### macOS logs `_TIPropertyValueIsValid called with 11 on nil context!`
+
+Noise from the system input manager that any WebKit-based app produces. It has no effect on the login flow.
 
 ## Development
 
