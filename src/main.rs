@@ -257,10 +257,15 @@ fn build_webview(
 /// so following it would at best fail and at worst hand the authorization code
 /// to whichever application happens to claim the scheme. Cancel it and take over
 /// the window instead.
+///
+/// Everything else is allowed through, a URI we cannot parse included: the
+/// handler also sees subframe navigations, so cancelling one risks taking an
+/// embedded captcha down with it, and a URI that fails to parse is by
+/// definition not the callback.
 fn handle_navigation(event_proxy: &EventLoopProxy<UserEvent>, uri: String) -> bool {
     let Ok(url) = Url::parse(&uri) else {
-        log::warn!("Ignoring malformed navigation URL");
-        return false;
+        log::debug!("Navigating to a URL we could not parse ...");
+        return true;
     };
 
     if !auth::is_redirect_url(&url) {
