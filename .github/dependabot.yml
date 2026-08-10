@@ -11,3 +11,9 @@ updates:
       interval: "monthly"
     cooldown:
       default-days: 5
+    # Used *only* by release.yml, which dist generates — a bump here can't be
+    # applied by hand, since `dist plan` fails any PR that edits it. Don't add
+    # checkout or rust-cache: ci.yml shares those and must stay updatable.
+    ignore:
+      - dependency-name: "actions/upload-artifact"
+      - dependency-name: "actions/download-artifact"

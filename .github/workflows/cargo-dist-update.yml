@@ -1,0 +1,56 @@
+name: Check for cargo-dist updates
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Open an issue if the pinned version is out of date
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          current=$(sed -n 's/^cargo-dist-version = "\(.*\)"/\1/p' dist-workspace.toml)
+          latest=$(gh api repos/axodotdev/cargo-dist/releases/latest --jq '.tag_name | ltrimstr("v")')
+
+          if [ -z "$current" ] || [ -z "$latest" ]; then
+            echo "Could not determine versions (pinned: '$current', latest: '$latest')" >&2
+            exit 1
+          fi
+
+          echo "pinned: $current, latest: $latest"
+
+          if [ "$current" = "$latest" ]; then
+            echo "Already up to date."
+            exit 0
+          fi
+
+          # Match the title prefix, not the exact version, so an issue left open
+          # for an older release doesn't get a duplicate when the next one lands.
+          open=$(gh issue list --state open --limit 100 --json title \
+            --jq 'any(.[]; .title | startswith("Upgrade cargo-dist to "))')
+          if [ "$open" = "true" ]; then
+            echo "An upgrade issue is already open."
+            exit 0
+          fi
+
+          gh issue create --title "Upgrade cargo-dist to $latest" --body-file - <<EOF
+          cargo-dist [$latest](https://github.com/axodotdev/cargo-dist/releases/tag/v$latest) is out; this repo pins $current.
+
+          See [Upgrading dist]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/main/RELEASE.md#upgrading-dist) for the steps.
+
+          Opened automatically by \`.github/workflows/cargo-dist-update.yml\`.
+          EOF
