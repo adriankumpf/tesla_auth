@@ -2,7 +2,6 @@
 name = "tesla_auth"
 version = "0.15.0"
 description = "Tesla token generator"
-homepage = "https://github.com/adriankumpf/tesla_auth"
 repository = "https://github.com/adriankumpf/tesla_auth"
 keywords = ["tesla-api", "oauth2", "webview", "cli"]
 categories = ["command-line-utilities"]
@@ -15,14 +14,14 @@ license = "MIT"
 [dependencies]
 anyhow = "1.0.104"
 argh = "0.1.19"
-log = "0.4.33"
-muda = "0.19.3"
+log = "0.4.35"
+muda = "0.21.2"
 oauth2 = { version = "5.0.0", features = ["reqwest-blocking"] }
 simple_logger = { version = "5.2.0", default-features = false, features = [
   "stderr",
 ] }
-tao = { version = "0.36", default-features = false, features = ["rwh_06"] }
-wry = { version = "0.56.0", features = ["devtools"] }
+tao = { version = "0.37", default-features = false, features = ["rwh_06"] }
+wry = { version = "0.57.3", features = ["devtools"] }
 
 [build-dependencies]
 static_vcruntime = "3.0.0"
