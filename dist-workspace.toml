@@ -18,6 +18,9 @@ pr-run-mode = "upload"
 "webkit2gtk-4.1" = '*'
 libxdo-dev = '*'
 
+# dist's built-in macOS labels can lag behind GitHub's image retirements
+# (macos-14 was rejected in Nov 2026). When a label goes, bump it here; both
+# macOS targets build on Apple Silicon, x86_64 by cross-compiling.
 [dist.github-custom-runners]
 aarch64-apple-darwin = "macos-15"
 x86_64-apple-darwin = "macos-15"
