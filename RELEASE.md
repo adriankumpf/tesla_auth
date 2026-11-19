@@ -22,5 +22,12 @@ dist selfupdate --version X.Y.Z --yes  # updates the pin and regenerates release
 dist plan                              # sanity check
 ```
 
+`selfupdate` only works for installs that left an install receipt (the shell
+installer). With a Homebrew install it prints "Unable to load install receipt",
+changes nothing and still exits 0, so check that the diff isn't empty. In that
+case upgrade the binary with `brew upgrade cargo-dist` and run
+`dist init --yes`, which bumps the pin to the running version and regenerates
+`release.yml`.
+
 A [scheduled workflow](.github/workflows/cargo-dist-update.yml) opens an issue
 when a new release is available.
