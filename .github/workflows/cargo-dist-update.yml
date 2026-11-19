@@ -33,24 +33,45 @@ jobs:
 
           echo "pinned: $current, latest: $latest"
 
-          if [ "$current" = "$latest" ]; then
+          # releases/latest skips prereleases, so a pin ahead of it (a prerelease,
+          # say) must not count as outdated.
+          if [ "$(printf '%s\n' "$current" "$latest" | sort -V | tail -n1)" = "$current" ]; then
             echo "Already up to date."
             exit 0
           fi
 
-          # Match the title prefix, not the exact version, so an issue left open
-          # for an older release doesn't get a duplicate when the next one lands.
-          open=$(gh issue list --state open --limit 100 --json title \
-            --jq 'any(.[]; .title | startswith("Upgrade cargo-dist to "))')
-          if [ "$open" = "true" ]; then
-            echo "An upgrade issue is already open."
-            exit 0
-          fi
-
-          gh issue create --title "Upgrade cargo-dist to $latest" --body-file - <<EOF
+          title="Upgrade cargo-dist to $latest"
+          body=$(cat <<EOF
           cargo-dist [$latest](https://github.com/axodotdev/cargo-dist/releases/tag/v$latest) is out; this repo pins $current.
 
           See [Upgrading dist]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/main/RELEASE.md#upgrading-dist) for the steps.
 
           Opened automatically by \`.github/workflows/cargo-dist-update.yml\`.
           EOF
+          )
+
+          # Match the title prefix, not the exact version, so an issue left open
+          # for an older release is retargeted at the new one instead of getting
+          # a duplicate. Editing in place keeps the issue number, so a PR that
+          # already says "Closes #N" still closes it. Only issues this workflow
+          # opened are considered, so a hand-written one is never overwritten.
+          existing=$(gh issue list --state open --author 'github-actions[bot]' --limit 100 \
+            --json number,title \
+            --jq 'map(select(.title | startswith("Upgrade cargo-dist to "))) | first // empty | "\(.number)\t\(.title)"')
+
+          if [ -z "$existing" ]; then
+            gh issue create --title "$title" --body-file - <<< "$body"
+            exit 0
+          fi
+
+          IFS=$'\t' read -r number existing_title <<< "$existing"
+          if [ "$existing_title" = "$title" ]; then
+            echo "Issue #$number already tracks $latest."
+            exit 0
+          fi
+
+          # Title and body edits don't notify subscribers, so comment too. The
+          # comment goes first: if the edit then fails, the next run retries
+          # both instead of seeing the new title and skipping the comment.
+          gh issue comment "$number" --body "cargo-dist $latest is out, so this issue now tracks it."
+          gh issue edit "$number" --title "$title" --body-file - <<< "$body"
